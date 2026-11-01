@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: caro-game-server
+    name: carokora
     runtime: docker
     rootDir: server
     region: singapore

@@ -75,7 +75,7 @@ Tài khoản mẫu có sẵn để test đăng nhập trên 2 máy / 2 máy ảo
    - **Instance Type**: `Free`
    - Trong mục **Environment Variables**, thêm biến:
      - `DATABASE_URL` = *(dán chuỗi `DATABASE_URL_POOLED` có hậu tố `-pooler` từ Neon Dashboard / file `.env`)*
-   - Nhấn **Deploy Web Service**. Khi lên trạng thái **Live**, mở `https://<ten-service>.onrender.com/health` thấy `{"status":"OK","database":"Neon PostgreSQL"}` là thành công!
+   - Nhấn **Deploy Web Service**. Khi lên trạng thái **Live**, mở `https://carokora.onrender.com/health` thấy `{"status":"OK","database":"Neon PostgreSQL"}` là thành công!
 
 ---
 
@@ -91,6 +91,6 @@ Server lắng nghe tại `http://localhost:8080` (kiểm tra tại `http://local
 1. Mở **Android Studio** -> **Open** -> chọn thư mục **`android-client`**.
 2. Đợi Gradle Sync hoàn tất -> nhấn **Run (`Shift + F10`)** lên máy ảo Android Emulator hoặc điện thoại thật.
 3. Ngay ở góc trên bên phải màn hình **LOGIN**, bấm nút **`SERVER`**:
-   - Nếu chạy với **Render Cloud**: nhập `https://<ten-service>.onrender.com` -> **SAVE**.
+   - Nếu chạy với **Render Cloud**: nhập `https://carokora.onrender.com` -> **SAVE**.
    - Nếu chạy với **Server Local trên máy tính** (qua Android Emulator): nhập `http://10.0.2.2:8080` -> **SAVE**.
 4. Đăng nhập trên 2 máy ảo (ví dụ Máy 1: `ha88` / `123456`, Máy 2: `Bn` / `123456`) để demo trực tiếp Đổi mật khẩu, Thách đấu & Xem lịch sử nước đi, và Ghép trận Chơi với người!

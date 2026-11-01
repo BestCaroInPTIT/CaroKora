@@ -187,7 +187,7 @@ class LoginActivity : AppCompatActivity(), View.OnClickListener {
     private fun showServerUrlDialog() {
         val input = EditText(this).apply {
             setText(SessionManager.getServerUrl(this@LoginActivity))
-            hint = "https://caro-game-server.onrender.com"
+            hint = "https://carokora.onrender.com"
             setPadding(36, 28, 36, 28)
         }
         val container = LinearLayout(this).apply {
@@ -198,7 +198,7 @@ class LoginActivity : AppCompatActivity(), View.OnClickListener {
 
         AlertDialog.Builder(this)
             .setTitle("Configure Server URL")
-            .setMessage("Emulator Local: http://10.0.2.2:8080\nRender Cloud: https://<your-service>.onrender.com")
+            .setMessage("Render Cloud: https://carokora.onrender.com\nEmulator Local: http://10.0.2.2:8080")
             .setView(container)
             .setPositiveButton("SAVE") { _, _ ->
                 val url = input.text.toString().trim()

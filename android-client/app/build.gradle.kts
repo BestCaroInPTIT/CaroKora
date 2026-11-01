@@ -15,7 +15,7 @@ android {
         versionName = "1.0"
 
         // Thay URL nay bang URL Render cua nhom sau khi deploy (hoac chinh ngay tren man hinh Login)
-        buildConfigField("String", "DEFAULT_BASE_URL", "\"https://caro-game-server.onrender.com\"")
+        buildConfigField("String", "DEFAULT_BASE_URL", "\"https://carokora.onrender.com\"")
     }
 
     buildFeatures {
