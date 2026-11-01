@@ -6,8 +6,6 @@ import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Handler
 import android.os.Looper
-import android.text.Editable
-import android.text.TextWatcher
 import android.view.View
 import android.view.ViewGroup
 import android.view.Window
@@ -20,7 +18,7 @@ import com.caro.client.entity.Player
 
 class ChangePasswordDialog(
     context: Context,
-    private val player: Player
+    private var player: Player
 ) : Dialog(context), View.OnClickListener {
 
     private var txtOldPassword: EditText
@@ -43,27 +41,8 @@ class ChangePasswordDialog(
         btnConfirm.setOnClickListener(this)
         btnCancel.setOnClickListener(this)
 
-        btnConfirm.isEnabled = false
-        btnConfirm.alpha = 0.45f
-
-        val watcher = object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                val oldPass = txtOldPassword.text?.toString() ?: ""
-                val newPass = txtNewPassword.text?.toString() ?: ""
-                val confirmPass = txtConfirmPassword.text?.toString() ?: ""
-                val isReady = oldPass.isNotEmpty() &&
-                    newPass.length >= 6 &&
-                    newPass != oldPass &&
-                    confirmPass == newPass
-                btnConfirm.isEnabled = isReady
-                btnConfirm.alpha = if (isReady) 1.0f else 0.45f
-            }
-            override fun afterTextChanged(s: Editable?) {}
-        }
-        txtOldPassword.addTextChangedListener(watcher)
-        txtNewPassword.addTextChangedListener(watcher)
-        txtConfirmPassword.addTextChangedListener(watcher)
+        btnConfirm.isEnabled = true
+        btnConfirm.alpha = 1.0f
 
         setOnShowListener {
             val widthPx = (context.resources.displayMetrics.widthPixels * 0.90f).toInt()
@@ -74,15 +53,59 @@ class ChangePasswordDialog(
     override fun onClick(v: View?) {
         when (v?.id) {
             R.id.btnConfirm -> {
-                val oldPass = txtOldPassword.text.toString()
-                val newPass = txtNewPassword.text.toString()
-                val confirmPass = txtConfirmPassword.text.toString()
-                if (oldPass.isEmpty() || newPass.length < 6 || newPass == oldPass || confirmPass != newPass) {
+                val oldPass = txtOldPassword.text?.toString() ?: ""
+                val newPass = txtNewPassword.text?.toString() ?: ""
+                val confirmPass = txtConfirmPassword.text?.toString() ?: ""
+
+                // 6.4. Player A nhap sai dinh dang mat khau moi (< 6 ky tu)
+                if (newPass.length < 6) {
+                    ApiClient.showNotice(
+                        context = context,
+                        title = "NOTICE",
+                        message = "Invalid new password format! Password must be at least 6 characters long.",
+                        headerColorRes = R.color.kora_coral,
+                        primaryText = "OK"
+                    )
+                    return
+                }
+
+                // 6.3. Player A nhap mat khau moi trung voi mat khau cu
+                if (newPass == oldPass) {
+                    ApiClient.showNotice(
+                        context = context,
+                        title = "NOTICE",
+                        message = "New password can not be similar to old password! Enter again.",
+                        headerColorRes = R.color.kora_coral,
+                        primaryText = "OK"
+                    )
+                    return
+                }
+
+                // 6.2. Player A nhap sai xac nhan mat khau
+                if (confirmPass != newPass) {
+                    ApiClient.showNotice(
+                        context = context,
+                        title = "NOTICE",
+                        message = "Wrong confirm password! Enter again.",
+                        headerColorRes = R.color.kora_coral,
+                        primaryText = "OK"
+                    )
+                    return
+                }
+
+                // 6.1. Kiem tra mat khau cu trong
+                if (oldPass.isEmpty()) {
+                    ApiClient.showNotice(
+                        context = context,
+                        title = "NOTICE",
+                        message = "Wrong old password! Enter again.",
+                        headerColorRes = R.color.kora_coral,
+                        primaryText = "OK"
+                    )
                     return
                 }
 
                 btnConfirm.isEnabled = false
-                btnConfirm.alpha = 0.45f
                 val playerClientController = PlayerClientController()
                 val mainHandler = Handler(Looper.getMainLooper())
 
@@ -94,13 +117,8 @@ class ChangePasswordDialog(
                     }
 
                     mainHandler.post {
+                        btnConfirm.isEnabled = true
                         if (!isShowing) return@post
-                        val readyNow = txtOldPassword.text.isNotEmpty() &&
-                            txtNewPassword.text.length >= 6 &&
-                            txtNewPassword.text.toString() != txtOldPassword.text.toString() &&
-                            txtConfirmPassword.text.toString() == txtNewPassword.text.toString()
-                        btnConfirm.isEnabled = readyNow
-                        btnConfirm.alpha = if (readyNow) 1.0f else 0.45f
 
                         if (success) {
                             player.setPassword(newPass)
@@ -118,11 +136,12 @@ class ChangePasswordDialog(
                                 }
                             )
                         } else {
+                            // 6.1. Player A nhap sai mat khau cu tren Server
                             ApiClient.showNotice(
                                 context = context,
-                                title = "WRONG PASSWORD",
+                                title = "NOTICE",
                                 message = "Wrong old password! Enter again.",
-                                headerColorRes = R.color.kora_brick,
+                                headerColorRes = R.color.kora_coral,
                                 primaryText = "OK"
                             )
                         }
