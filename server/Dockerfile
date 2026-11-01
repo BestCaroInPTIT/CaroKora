@@ -1,6 +1,7 @@
 FROM gradle:8.10-jdk17 AS build
 WORKDIR /app
 COPY build.gradle.kts settings.gradle.kts ./
+RUN gradle dependencies --no-daemon
 COPY src ./src
 RUN gradle shadowJar --no-daemon
 

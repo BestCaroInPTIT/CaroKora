@@ -1,8 +1,9 @@
 package com.caro.server
 
-import com.caro.server.controller.CaroOutcomeChecker
 import com.caro.server.controller.ChallengeServerController
+import com.caro.server.controller.HumanMatchServerController
 import com.caro.server.controller.PlayerServerController
+import com.caro.server.dao.DAO
 import com.caro.server.entity.GameBoard
 import com.caro.server.entity.MatchParticipant
 import com.caro.server.entity.Move
@@ -15,6 +16,8 @@ class HaModulesSmokeTest {
 
     @Test
     fun testCaroFiveInARowAndOpenFourOutcomeChecker() {
+        val humanCtrl = HumanMatchServerController()
+        val challengeCtrl = ChallengeServerController()
         val pX = MatchParticipant(id = 1, side = "X")
         val pO = MatchParticipant(id = 2, side = "O")
 
@@ -27,7 +30,8 @@ class HaModulesSmokeTest {
             Move(row = "H", column = 8, moveOrder = 7, matchParticipant = pX)
         )
         openFourBoard.rebuildFromMoves(openFourMoves)
-        assertEquals("WIN", CaroOutcomeChecker.checkOutcome(openFourBoard, openFourMoves.last()))
+        assertEquals("WIN", humanCtrl.checkOutcome(openFourBoard, openFourMoves.last()))
+        assertEquals("WIN", challengeCtrl.checkOutcome(openFourBoard, openFourMoves.last()))
 
         // 2. 4 quan bi chan 1 dau (OXXXX.) -> ONGOING, dat quan thu 5 (OXXXXX) -> WIN
         val blockedFourBoard = GameBoard()
@@ -39,12 +43,14 @@ class HaModulesSmokeTest {
             Move(row = "H", column = 8, moveOrder = 5, matchParticipant = pX)
         )
         blockedFourBoard.rebuildFromMoves(blockedFourMoves)
-        assertEquals("ONGOING", CaroOutcomeChecker.checkOutcome(blockedFourBoard, blockedFourMoves.last()))
+        assertEquals("ONGOING", humanCtrl.checkOutcome(blockedFourBoard, blockedFourMoves.last()))
+        assertEquals("ONGOING", challengeCtrl.checkOutcome(blockedFourBoard, blockedFourMoves.last()))
 
         val fifthMove = Move(row = "H", column = 9, moveOrder = 6, matchParticipant = pX)
         blockedFourMoves.add(fifthMove)
         blockedFourBoard.rebuildFromMoves(blockedFourMoves)
-        assertEquals("WIN", CaroOutcomeChecker.checkOutcome(blockedFourBoard, fifthMove))
+        assertEquals("WIN", humanCtrl.checkOutcome(blockedFourBoard, fifthMove))
+        assertEquals("WIN", challengeCtrl.checkOutcome(blockedFourBoard, fifthMove))
     }
 
     @Test
@@ -65,6 +71,11 @@ class HaModulesSmokeTest {
         val onlineList = challengeCtrl.handleGetOnlinePlayers()
         assertTrue(onlineList.any { it.gameID == "ha88" }, "ha88 should appear in online players list")
 
-        assertTrue(playerCtrl.handleLogout(loggedIn.id))
+        DAO.getConnection().use { conn ->
+            conn.prepareStatement("UPDATE Player SET onlineStatus = 'OFFLINE' WHERE id = ?").use { ps ->
+                ps.setInt(1, loggedIn.id)
+                ps.executeUpdate()
+            }
+        }
     }
 }

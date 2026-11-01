@@ -1,12 +1,12 @@
 package com.caro.server.controller
 
+import com.caro.server.dao.DAO
 import com.caro.server.dao.MatchDAO
 import com.caro.server.dao.MoveDAO
 import com.caro.server.dao.PlayerStatisticDAO
 import com.caro.server.entity.GameBoard
 import com.caro.server.entity.Match
 import com.caro.server.entity.Move
-import com.caro.server.entity.PlayerStatistic
 import java.util.concurrent.ConcurrentHashMap
 
 class HumanMatchServerController {
@@ -15,36 +15,27 @@ class HumanMatchServerController {
     private val playerStatisticDAO = PlayerStatisticDAO()
 
     private val queueLock = Any()
-    // playerId -> thoi diem poll gan nhat (ms)
     private val waitingQueue = LinkedHashMap<Int, Long>()
-    // playerId -> matchId vua duoc ghep cap
     private val matchedResults = ConcurrentHashMap<Int, Int>()
 
-    private val matchLocks = ConcurrentHashMap<Int, Any>()
-
-    data class RematchSession(
-        val acceptedPlayerIds: MutableSet<Int> = mutableSetOf(),
-        var refusedByPlayerId: Int? = null,
-        var newMatchId: Int? = null
-    )
-
-    private val rematchSessions = ConcurrentHashMap<Int, RematchSession>()
-
-    /**
-     * Ghep cap 2 nguoi choi dang tim tran (timeout poll = 8 giay de tranh ghep voi nguoi da thoat)
-     */
     fun handleFindAndCreateMatch(playerId: Int): Match? {
-        if (playerId <= 0) return null
+        if (playerId < 0) {
+            val targetId = -playerId
+            synchronized(queueLock) {
+                waitingQueue.remove(targetId)
+                matchedResults.remove(targetId)
+            }
+            return null
+        }
+        if (playerId == 0) return null
 
         synchronized(queueLock) {
-            // Neu nguoi choi nay vua duoc doi thu ghep cap thanh cong -> tra ve Match ngay
             val readyMatchId = matchedResults.remove(playerId)
             if (readyMatchId != null) {
-                return matchDAO.getMatchById(readyMatchId)
+                return DAO.getMatchById(readyMatchId)
             }
 
             val now = System.currentTimeMillis()
-            // Don dep nhung nguoi choi khong con poll trong 8 giay qua
             val expiredIter = waitingQueue.entries.iterator()
             while (expiredIter.hasNext()) {
                 val entry = expiredIter.next()
@@ -53,12 +44,10 @@ class HumanMatchServerController {
                 }
             }
 
-            // Tim doi thu khac dang doi trong hang doi
             val opponentId = waitingQueue.keys.firstOrNull { it != playerId }
             if (opponentId != null) {
                 waitingQueue.remove(opponentId)
                 waitingQueue.remove(playerId)
-                // Nguoi vao truoc (opponentId) cam quan X, nguoi vao sau (playerId) cam quan O
                 val createdMatch = matchDAO.createHumanMatch(opponentId, playerId)
                 if (createdMatch != null) {
                     matchedResults[opponentId] = createdMatch.id
@@ -66,32 +55,24 @@ class HumanMatchServerController {
                 return createdMatch
             }
 
-            // Chua co doi thu -> dua vao hang doi hoac cap nhat heartbeat
             waitingQueue[playerId] = now
             return null
         }
     }
 
-    fun handleCancelFindMatch(playerId: Int) {
-        synchronized(queueLock) {
-            waitingQueue.remove(playerId)
-            matchedResults.remove(playerId)
-        }
-    }
-
-    /**
-     * Xu ly nuoc di theo dung bieu do tuan tu:
-     * addMove() -> updateBoardAndTurn() -> checkOutcome() -> getMoveHistory()
-     * -> neu ket thuc: endMatchAndDeterMineOutcome() -> getPlayerStatistic()
-     */
     fun handleMakeMove(move: Move): Match? {
         val matchId = move.matchId
         if (matchId <= 0) return null
-        val lock = matchLocks.computeIfAbsent(matchId) { Any() }
 
-        synchronized(lock) {
-            val match = matchDAO.getMatchById(matchId) ?: return null
-            if (match.status != "PLAYING") return match
+        synchronized(DAO.lockForMatch(matchId)) {
+            val match = DAO.checkAndEnforceTurnTimeout(matchId, graceSeconds = 1.0) ?: return null
+            if (match.status != "PLAYING") {
+                for (mp in match.matchParticipant) {
+                    val pId = mp.player?.id ?: continue
+                    playerStatisticDAO.getPlayerStatistics(pId)?.let { mp.player = it }
+                }
+                return match
+            }
 
             val participant = match.matchParticipant.firstOrNull {
                 it.id == move.matchParticipant?.id ||
@@ -124,16 +105,13 @@ class HumanMatchServerController {
             val outcome = checkOutcome(match.gameBoard, move)
             if (outcome == "WIN" || outcome == "DRAW") {
                 val endedMatch = if (outcome == "WIN") {
-                    matchDAO.endMatchAndDeterMineOutcome(matchId, participant.id, isDraw = false)
+                    matchDAO.endMatchAndDetermineOutcome(matchId, participant.id, isDraw = false)
                 } else {
-                    matchDAO.endMatchAndDeterMineOutcome(matchId, winnerPartId = 0, isDraw = true)
+                    matchDAO.endMatchAndDetermineOutcome(matchId, winnerPartId = 0, isDraw = true)
                 }
                 for (mp in endedMatch?.matchParticipant ?: emptyList()) {
                     val pId = mp.player?.id ?: continue
-                    val stat: PlayerStatistic? = playerStatisticDAO.getPlayerStatistic(pId)
-                    if (stat != null) {
-                        mp.player = stat
-                    }
+                    playerStatisticDAO.getPlayerStatistics(pId)?.let { mp.player = it }
                 }
                 return endedMatch
             }
@@ -143,87 +121,65 @@ class HumanMatchServerController {
     }
 
     fun checkOutcome(board: GameBoard, lastMove: Move): String {
-        return CaroOutcomeChecker.checkOutcome(board, lastMove)
-    }
-
-    fun handleStopPlaying(matchId: Int, playerId: Int): Match? {
-        val endedMatch = matchDAO.stopPlaying(matchId, playerId) ?: return null
-        for (mp in endedMatch.matchParticipant) {
-            val pId = mp.player?.id ?: continue
-            val stat = playerStatisticDAO.getPlayerStatistic(pId)
-            if (stat != null) mp.player = stat
-        }
-        return endedMatch
-    }
-
-    fun handleGetMatchState(matchId: Int): Match? {
-        val match = matchDAO.getMatchById(matchId) ?: return null
-        if (match.status == "FINISHED" || match.status == "STOPPED") {
-            for (mp in match.matchParticipant) {
-                val pId = mp.player?.id ?: continue
-                val stat = playerStatisticDAO.getPlayerStatistic(pId)
-                if (stat != null) mp.player = stat
-            }
-        }
-        return match
-    }
-
-    data class RematchResponse(
-        val status: String, // PENDING | WAITING | CREATED | REFUSED
-        val match: Match? = null
-    )
-
-    fun handleGetRematchStatus(oldMatchId: Int): RematchResponse {
-        val session = rematchSessions[oldMatchId] ?: return RematchResponse("PENDING", null)
-        synchronized(session) {
-            if (session.refusedByPlayerId != null) {
-                return RematchResponse("REFUSED", null)
-            }
-            val newId = session.newMatchId
-            if (newId != null) {
-                return RematchResponse("CREATED", matchDAO.getMatchById(newId))
-            }
-            if (session.acceptedPlayerIds.isNotEmpty()) {
-                return RematchResponse("WAITING", null)
-            }
-            return RematchResponse("PENDING", null)
-        }
-    }
-
-    fun handleQuickRematch(oldMatchId: Int, playerId: Int, accept: Boolean): RematchResponse {
-        val oldMatch = matchDAO.getMatchById(oldMatchId) ?: return RematchResponse("REFUSED", null)
-        val playerIds = oldMatch.matchParticipant.mapNotNull { it.player?.id }
-        if (playerIds.size < 2 || playerId !in playerIds) {
-            return RematchResponse("REFUSED", null)
+        val r = GameBoard.rowToIndex(lastMove.row)
+        val c = lastMove.column - 1
+        if (r !in 0 until GameBoard.BOARD_DIMENSION || c !in 0 until GameBoard.BOARD_DIMENSION) {
+            return "ONGOING"
         }
 
-        val session = rematchSessions.computeIfAbsent(oldMatchId) { RematchSession() }
-        synchronized(session) {
-            if (!accept) {
-                session.refusedByPlayerId = playerId
-                return RematchResponse("REFUSED", null)
-            }
-            if (session.refusedByPlayerId != null) {
-                return RematchResponse("REFUSED", null)
-            }
-            if (session.newMatchId != null) {
-                return RematchResponse("CREATED", matchDAO.getMatchById(session.newMatchId!!))
-            }
+        val symbol = board.getCell(r, c)
+        if (symbol != 'X' && symbol != 'O') return "ONGOING"
 
-            session.acceptedPlayerIds.add(playerId)
-            if (session.acceptedPlayerIds.containsAll(playerIds)) {
-                // Doi ben X/O cho van tai dau cong bang va giu nguyen mode (HUMAN hoac CHALLENGE)
-                val newP1 = playerIds[1]
-                val newP2 = playerIds[0]
-                val newMatch = matchDAO.createActiveMatch(newP1, newP2, oldMatch.mode)
-                return if (newMatch != null) {
-                    session.newMatchId = newMatch.id
-                    RematchResponse("CREATED", newMatch)
+        fun countDir(dR: Int, dC: Int): Int {
+            var count = 0
+            var cr = r + dR
+            var cc = c + dC
+            while (cr in 0 until GameBoard.BOARD_DIMENSION && cc in 0 until GameBoard.BOARD_DIMENSION) {
+                if (board.getCell(cr, cc) == symbol) {
+                    count++
+                    cr += dR
+                    cc += dC
                 } else {
-                    RematchResponse("REFUSED", null)
+                    break
                 }
             }
-            return RematchResponse("WAITING", null)
+            return count
         }
+
+        val directions = arrayOf(
+            intArrayOf(0, 1),
+            intArrayOf(1, 0),
+            intArrayOf(1, 1),
+            intArrayOf(1, -1)
+        )
+
+        for (dir in directions) {
+            val dR = dir[0]
+            val dC = dir[1]
+            val forward = countDir(dR, dC)
+            val backward = countDir(-dR, -dC)
+            val total = 1 + forward + backward
+
+            if (total >= 5) return "WIN"
+
+            if (total == 4) {
+                val afterR = r + (forward + 1) * dR
+                val afterC = c + (forward + 1) * dC
+                val beforeR = r - (backward + 1) * dR
+                val beforeC = c - (backward + 1) * dC
+
+                val afterOpen = afterR in 0 until GameBoard.BOARD_DIMENSION &&
+                    afterC in 0 until GameBoard.BOARD_DIMENSION &&
+                    board.getCell(afterR, afterC) == '.'
+                val beforeOpen = beforeR in 0 until GameBoard.BOARD_DIMENSION &&
+                    beforeC in 0 until GameBoard.BOARD_DIMENSION &&
+                    board.getCell(beforeR, beforeC) == '.'
+
+                if (afterOpen && beforeOpen) return "WIN"
+            }
+        }
+
+        if (!board.boardState.contains('.')) return "DRAW"
+        return "ONGOING"
     }
 }

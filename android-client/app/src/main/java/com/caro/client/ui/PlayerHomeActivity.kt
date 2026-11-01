@@ -9,11 +9,13 @@ import android.widget.Button
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.caro.client.R
+import com.caro.client.controller.ApiClient
 import com.caro.client.controller.PlayerClientController
 import com.caro.client.entity.Match
 import com.caro.client.entity.Player
-import java.util.concurrent.Executors
 
 class PlayerHomeActivity : AppCompatActivity(), View.OnClickListener {
 
@@ -25,32 +27,22 @@ class PlayerHomeActivity : AppCompatActivity(), View.OnClickListener {
     private lateinit var btnLogout: Button
 
     private lateinit var player: Player
-    private val playerClientController = PlayerClientController()
-    private val ioExecutor = Executors.newSingleThreadExecutor()
-    private val mainHandler = Handler(Looper.getMainLooper())
-
     private var activeChallengeDialog: ChallengeDialog? = null
     private var lastShownChallengeMatchId: Int = -1
-
-    private val heartbeatRunnable = object : Runnable {
-        override fun run() {
-            pollHeartbeatAndIncomingChallenge()
-            mainHandler.postDelayed(this, 2500L)
-        }
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.playerhome)
 
-        val resolvedPlayer = (intent.getSerializableExtra(EXTRA_PLAYER) as? Player)
-            ?: SessionManager.getPlayer(this)
+        val resolvedPlayer = (intent.getSerializableExtra("extra_player") as? Player)
+            ?: ApiClient.getPlayer(this)
         if (resolvedPlayer == null) {
             startActivity(Intent(this, LoginActivity::class.java))
             finish()
             return
         }
         player = resolvedPlayer
+        ApiClient.savePlayer(this, player)
 
         imgAvatar = findViewById(R.id.imgAvatar)
         lblPlayerName = findViewById(R.id.lblPlayerName)
@@ -65,119 +57,119 @@ class PlayerHomeActivity : AppCompatActivity(), View.OnClickListener {
         btnViewOnlinePlayers.setOnClickListener(this)
         btnLogout.setOnClickListener(this)
 
-        bindPlayerHeader()
-    }
+        lblPlayerName.text = "HELLO, ${player.gameID}"
 
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        setIntent(intent)
-        (intent.getSerializableExtra(EXTRA_PLAYER) as? Player)?.let {
-            player = it
-            SessionManager.savePlayer(this, it)
-            bindPlayerHeader()
+        data class HeartbeatResp(val alive: Boolean = false, val incomingChallenge: Match? = null)
+
+        val mainHandler = Handler(Looper.getMainLooper())
+        val controller = PlayerClientController()
+        val heartbeatRunnable = object : Runnable {
+            override fun run() {
+                if (!lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) return
+                val currentId = player.id
+                if (currentId > 0) {
+                    Thread {
+                        val resp = try {
+                            controller.postJson<HeartbeatResp>(
+                                "/api/player/heartbeat",
+                                mapOf("playerId" to currentId),
+                                HeartbeatResp::class.java
+                            )
+                        } catch (_: Exception) {
+                            null
+                        }
+                        val incoming = resp?.incomingChallenge ?: return@Thread
+                        runOnUiThread {
+                            if (isFinishing || isDestroyed) return@runOnUiThread
+                            if (!lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) return@runOnUiThread
+                            if (activeChallengeDialog?.isShowing == true) return@runOnUiThread
+                            if (incoming.id == lastShownChallengeMatchId) return@runOnUiThread
+
+                            val challenger = incoming.matchParticipant
+                                .firstOrNull { it.player?.id != null && it.player?.id != player.id }
+                                ?.player ?: return@runOnUiThread
+
+                            lastShownChallengeMatchId = incoming.id
+                            ApiClient.pendingIncomingChallenge = incoming
+                            activeChallengeDialog = ChallengeDialog(this@PlayerHomeActivity, player, challenger).also {
+                                it.show()
+                            }
+                        }
+                    }.start()
+                }
+                mainHandler.postDelayed(this, 2500L)
+            }
         }
+
+        lifecycle.addObserver(LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> {
+                    mainHandler.removeCallbacks(heartbeatRunnable)
+                    mainHandler.post(heartbeatRunnable)
+                }
+                Lifecycle.Event.ON_PAUSE -> {
+                    mainHandler.removeCallbacks(heartbeatRunnable)
+                }
+                Lifecycle.Event.ON_DESTROY -> {
+                    mainHandler.removeCallbacks(heartbeatRunnable)
+                    activeChallengeDialog?.dismiss()
+                }
+                else -> {}
+            }
+        })
     }
 
     override fun onResume() {
         super.onResume()
-        SessionManager.getPlayer(this)?.let {
+        ApiClient.getPlayer(this)?.let {
             player = it
-            bindPlayerHeader()
+            lblPlayerName.text = "HELLO, ${player.gameID}"
         }
-        mainHandler.removeCallbacks(heartbeatRunnable)
-        mainHandler.post(heartbeatRunnable)
-    }
-
-    override fun onPause() {
-        super.onPause()
-        mainHandler.removeCallbacks(heartbeatRunnable)
-    }
-
-    private fun bindPlayerHeader() {
-        lblPlayerName.text = "HELLO, ${player.gameID}"
     }
 
     override fun onClick(v: View?) {
         when (v?.id) {
             R.id.imgAvatar -> {
                 val intent = Intent(this, PlayerProfileActivity::class.java)
-                intent.putExtra(PlayerProfileActivity.EXTRA_PLAYER, player)
-                intent.putExtra(PlayerProfileActivity.EXTRA_TARGET_PLAYER_ID, player.id)
-                intent.putExtra(PlayerProfileActivity.EXTRA_IS_PUBLIC, false)
+                intent.putExtra("extra_player", player)
+                intent.putExtra("extra_target_player_id", player.id)
+                intent.putExtra("extra_is_public", false)
                 startActivity(intent)
             }
             R.id.btnPlay -> {
                 val intent = Intent(this, GameModeActivity::class.java)
-                intent.putExtra(GameModeActivity.EXTRA_PLAYER, player)
+                intent.putExtra("extra_player", player)
                 startActivity(intent)
             }
             R.id.btnViewOnlinePlayers -> {
                 val intent = Intent(this, OnlinePlayersActivity::class.java)
-                intent.putExtra(OnlinePlayersActivity.EXTRA_PLAYER, player)
+                intent.putExtra("extra_player", player)
                 startActivity(intent)
             }
             R.id.btnViewRanking -> {
-                // Diem tich hop cho thanh vien Nguyen Manh Duc (RankingActivity): bam vao khong hien thong bao
+                // Ngoai pham vi chuc nang ca nhan: bam vao khong thuc hien gi
             }
-            R.id.btnLogout -> handleLogout()
-        }
-    }
-
-    private fun pollHeartbeatAndIncomingChallenge() {
-        val currentId = player.id
-        if (currentId <= 0) return
-        ioExecutor.execute {
-            val resp = try {
-                playerClientController.sendHeartbeat(currentId)
-            } catch (_: Exception) {
-                null
-            }
-            val incoming: Match = resp?.incomingChallenge ?: return@execute
-            runOnUiThread {
-                if (isFinishing || isDestroyed) return@runOnUiThread
-                if (activeChallengeDialog?.isShowing == true) return@runOnUiThread
-                if (incoming.id == lastShownChallengeMatchId) return@runOnUiThread
-
-                val challenger = incoming.matchParticipant
-                    .firstOrNull { it.player?.id != null && it.player?.id != player.id }
-                    ?.player ?: return@runOnUiThread
-
-                lastShownChallengeMatchId = incoming.id
-                activeChallengeDialog = ChallengeDialog(
-                    context = this,
-                    player = player,
-                    opponent = challenger,
-                    incomingMatch = incoming
-                ).also { it.show() }
+            R.id.btnLogout -> {
+                val currentId = player.id
+                val controller = PlayerClientController()
+                Thread {
+                    try {
+                        controller.postJson<Map<String, Any>>(
+                            "/api/player/logout",
+                            mapOf("playerId" to currentId, "onlineStatus" to "OFFLINE"),
+                            Map::class.java
+                        )
+                    } catch (_: Exception) {
+                    }
+                    runOnUiThread {
+                        ApiClient.clearSession(this)
+                        val intent = Intent(this, LoginActivity::class.java)
+                        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                        startActivity(intent)
+                        finish()
+                    }
+                }.start()
             }
         }
-    }
-
-    private fun handleLogout() {
-        val currentId = player.id
-        ioExecutor.execute {
-            try {
-                playerClientController.logout(currentId)
-            } catch (_: Exception) {
-            }
-            runOnUiThread {
-                SessionManager.clearSession(this)
-                val intent = Intent(this, LoginActivity::class.java)
-                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                startActivity(intent)
-                finish()
-            }
-        }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        mainHandler.removeCallbacks(heartbeatRunnable)
-        activeChallengeDialog?.dismiss()
-        ioExecutor.shutdownNow()
-    }
-
-    companion object {
-        const val EXTRA_PLAYER = "extra_player"
     }
 }

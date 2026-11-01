@@ -23,26 +23,4 @@ class PlayerServerController {
         if (playerID <= 0 || newPass.length < 6 || oldPass == newPass) return false
         return playerDAO.changePassword(playerID, oldPass, newPass)
     }
-
-    // Ho tro dang ky tai khoan, dang xuat va cap nhat tieu su/anh dai dien tren giao dien
-    fun handleRegister(
-        gameID: String,
-        password: String,
-        fullName: String,
-        email: String,
-        avatar: String? = null
-    ): Player? {
-        if (gameID.isBlank() || password.length < 6) return null
-        return playerDAO.registerPlayer(gameID, password, fullName, email, avatar)
-    }
-
-    fun handleLogout(playerID: Int): Boolean {
-        if (playerID <= 0) return false
-        return playerDAO.updateOnlineStatus(playerID, "OFFLINE")
-    }
-
-    fun handleUpdateProfile(playerID: Int, bio: String?, avatar: String?): Boolean {
-        if (playerID <= 0) return false
-        return playerDAO.updateBioAndAvatar(playerID, bio, avatar)
-    }
 }

@@ -5,7 +5,10 @@ import android.view.View
 import android.widget.Button
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.caro.client.R
+import com.caro.client.controller.ApiClient
 import com.caro.client.entity.Player
 
 class GameModeActivity : AppCompatActivity(), View.OnClickListener {
@@ -22,8 +25,8 @@ class GameModeActivity : AppCompatActivity(), View.OnClickListener {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.gamemode)
 
-        val resolvedPlayer = (intent.getSerializableExtra(EXTRA_PLAYER) as? Player)
-            ?: SessionManager.getPlayer(this)
+        val resolvedPlayer = (intent.getSerializableExtra("extra_player") as? Player)
+            ?: ApiClient.getPlayer(this)
         if (resolvedPlayer == null) {
             finish()
             return
@@ -38,6 +41,12 @@ class GameModeActivity : AppCompatActivity(), View.OnClickListener {
         btnPlayAgainstHuman.setOnClickListener(this)
         btnPlayAgainstAI.setOnClickListener(this)
         btnBack.setOnClickListener(this)
+
+        lifecycle.addObserver(LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_DESTROY) {
+                findOpponentDialog?.dismiss()
+            }
+        })
     }
 
     override fun onClick(v: View?) {
@@ -47,18 +56,9 @@ class GameModeActivity : AppCompatActivity(), View.OnClickListener {
                 findOpponentDialog = FindOpponentDialog(this, player).also { it.show() }
             }
             R.id.btnPlayAgainstAI -> {
-                // Diem tich hop cho thanh vien Nguyen Manh Duc (Choi voi may / AI): bam vao khong hien thong bao
+                // Ngoai pham vi chuc nang ca nhan: bam vao khong thuc hien gi
             }
             R.id.btnBack -> finish()
         }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        findOpponentDialog?.dismiss()
-    }
-
-    companion object {
-        const val EXTRA_PLAYER = "extra_player"
     }
 }
