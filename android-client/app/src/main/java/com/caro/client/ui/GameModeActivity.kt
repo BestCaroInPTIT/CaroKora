@@ -47,13 +47,7 @@ class GameModeActivity : AppCompatActivity(), View.OnClickListener {
                 findOpponentDialog = FindOpponentDialog(this, player).also { it.show() }
             }
             R.id.btnPlayAgainstAI -> {
-                // Diem tich hop cho thanh vien cung nhom (Nguyen Manh Duc - Chuc nang Choi voi may / Bot)
-                KoraNoticeDialog.show(
-                    context = this,
-                    title = "PLAY AGAINST AI",
-                    message = "Chức năng Chơi với máy (AI / Bot) là điểm ghép nối của thành viên Nguyễn Mạnh Đức.",
-                    tone = KoraNoticeDialog.Tone.INFO
-                )
+                // Diem tich hop cho thanh vien Nguyen Manh Duc (Choi voi may / AI): bam vao khong hien thong bao
             }
             R.id.btnBack -> finish()
         }

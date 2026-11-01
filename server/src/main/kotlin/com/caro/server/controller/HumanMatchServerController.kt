@@ -82,7 +82,7 @@ class HumanMatchServerController {
     /**
      * Xu ly nuoc di theo dung bieu do tuan tu:
      * addMove() -> updateBoardAndTurn() -> checkOutcome() -> getMoveHistory()
-     * -> neu ket thuc: endMatchAndDetermineOutcome() -> getPlayerStatistic()
+     * -> neu ket thuc: endMatchAndDeterMineOutcome() -> getPlayerStatistic()
      */
     fun handleMakeMove(move: Move): Match? {
         val matchId = move.matchId
@@ -128,7 +128,6 @@ class HumanMatchServerController {
                 } else {
                     matchDAO.endMatchAndDeterMineOutcome(matchId, winnerPartId = 0, isDraw = true)
                 }
-                // Goi PlayerStatisticDAO.getPlayerStatistic() theo buoc 87-88
                 for (mp in endedMatch?.matchParticipant ?: emptyList()) {
                     val pId = mp.player?.id ?: continue
                     val stat: PlayerStatistic? = playerStatisticDAO.getPlayerStatistic(pId)
@@ -170,9 +169,26 @@ class HumanMatchServerController {
     }
 
     data class RematchResponse(
-        val status: String, // WAITING | CREATED | REFUSED
+        val status: String, // PENDING | WAITING | CREATED | REFUSED
         val match: Match? = null
     )
+
+    fun handleGetRematchStatus(oldMatchId: Int): RematchResponse {
+        val session = rematchSessions[oldMatchId] ?: return RematchResponse("PENDING", null)
+        synchronized(session) {
+            if (session.refusedByPlayerId != null) {
+                return RematchResponse("REFUSED", null)
+            }
+            val newId = session.newMatchId
+            if (newId != null) {
+                return RematchResponse("CREATED", matchDAO.getMatchById(newId))
+            }
+            if (session.acceptedPlayerIds.isNotEmpty()) {
+                return RematchResponse("WAITING", null)
+            }
+            return RematchResponse("PENDING", null)
+        }
+    }
 
     fun handleQuickRematch(oldMatchId: Int, playerId: Int, accept: Boolean): RematchResponse {
         val oldMatch = matchDAO.getMatchById(oldMatchId) ?: return RematchResponse("REFUSED", null)
@@ -196,10 +212,10 @@ class HumanMatchServerController {
 
             session.acceptedPlayerIds.add(playerId)
             if (session.acceptedPlayerIds.containsAll(playerIds)) {
-                // Doi ben X/O cho van tai dau cong bang
+                // Doi ben X/O cho van tai dau cong bang va giu nguyen mode (HUMAN hoac CHALLENGE)
                 val newP1 = playerIds[1]
                 val newP2 = playerIds[0]
-                val newMatch = matchDAO.createHumanMatch(newP1, newP2)
+                val newMatch = matchDAO.createActiveMatch(newP1, newP2, oldMatch.mode)
                 return if (newMatch != null) {
                     session.newMatchId = newMatch.id
                     RematchResponse("CREATED", newMatch)

@@ -205,6 +205,12 @@ fun Route.configureHaRoutes(
             }
         }
 
+        get("/human-match/rematch/{oldMatchId}") {
+            val oldMatchId = call.parameters["oldMatchId"]?.toIntOrNull() ?: 0
+            val res = humanMatchController.handleGetRematchStatus(oldMatchId)
+            call.respond(HttpStatusCode.OK, res)
+        }
+
         post("/human-match/rematch") {
             val req = call.receive<RematchRequest>()
             val res = humanMatchController.handleQuickRematch(req.oldMatchId, req.playerId, req.accept)

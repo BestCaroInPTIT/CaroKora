@@ -30,7 +30,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_centerInParent="true"
-                android:fontFamily="sans-serif-black"
+                android:fontFamily="monospace"
                 android:letterSpacing="0.06"
                 android:text="PLAYER PROFILE"
                 android:textColor="@color/kora_ink"
@@ -40,25 +40,25 @@
 
         <View
             android:layout_width="match_parent"
-            android:layout_height="2dp"
+            android:layout_height="1.5dp"
             android:layout_marginBottom="16dp"
             android:background="@color/kora_ink" />
 
-        <!-- Thong tin ho so ca nhan -->
+        <!-- Thong tin ho so ca nhan chuan thiet ke (image9.png & image23.png) -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal">
 
             <LinearLayout
-                android:layout_width="88dp"
+                android:layout_width="86dp"
                 android:layout_height="wrap_content"
                 android:orientation="vertical">
 
                 <ImageView
                     android:id="@+id/imgAvatar"
-                    android:layout_width="88dp"
-                    android:layout_height="88dp"
+                    android:layout_width="86dp"
+                    android:layout_height="86dp"
                     android:background="@drawable/bg_box_outline"
                     android:padding="2dp"
                     android:src="@drawable/ic_kora_avatar" />
@@ -66,14 +66,15 @@
                 <Button
                     android:id="@+id/btnChangeAvatar"
                     android:layout_width="match_parent"
-                    android:layout_height="36dp"
+                    android:layout_height="34dp"
                     android:layout_marginTop="6dp"
-                    android:background="@drawable/bg_box_outline"
+                    android:background="@drawable/bg_btn_neutral"
                     android:fontFamily="monospace"
+                    android:minHeight="0dp"
                     android:padding="2dp"
                     android:text="CHANGE AVATAR"
                     android:textColor="@color/kora_ink"
-                    android:textSize="9sp"
+                    android:textSize="8.5sp"
                     android:textStyle="bold"
                     app:backgroundTint="@null" />
             </LinearLayout>
@@ -92,7 +93,7 @@
                     android:fontFamily="monospace"
                     android:text="GAME ID: -"
                     android:textColor="@color/kora_ink"
-                    android:textSize="14sp"
+                    android:textSize="13.5sp"
                     android:textStyle="bold" />
 
                 <TextView
@@ -117,7 +118,7 @@
                     android:id="@+id/rowPassword"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
+                    android:layout_marginTop="5dp"
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
 
@@ -132,16 +133,17 @@
 
                     <Button
                         android:id="@+id/btnChangePassword"
-                        android:layout_width="wrap_content"
-                        android:layout_height="32dp"
-                        android:background="@drawable/bg_box_outline"
+                        android:layout_width="116dp"
+                        android:layout_height="26dp"
+                        android:background="@drawable/bg_btn_neutral"
                         android:fontFamily="monospace"
+                        android:minWidth="0dp"
                         android:minHeight="0dp"
-                        android:paddingHorizontal="8dp"
-                        android:paddingVertical="2dp"
+                        android:paddingHorizontal="4dp"
+                        android:paddingVertical="0dp"
                         android:text="CHANGE PASSWORD"
                         android:textColor="@color/kora_ink"
-                        android:textSize="10sp"
+                        android:textSize="8.5sp"
                         android:textStyle="bold"
                         app:backgroundTint="@null" />
                 </LinearLayout>
@@ -149,35 +151,49 @@
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
+                    android:layout_marginTop="5dp"
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Bio: "
+                        android:textColor="@color/kora_ink"
+                        android:textSize="13sp" />
 
                     <EditText
                         android:id="@+id/txtBio"
                         android:layout_width="0dp"
-                        android:layout_height="34dp"
+                        android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:background="@drawable/bg_box_outline"
-                        android:hint="Bio..."
+                        android:background="@android:color/transparent"
+                        android:cursorVisible="false"
+                        android:focusable="false"
+                        android:focusableInTouchMode="false"
+                        android:imeOptions="actionDone"
                         android:inputType="text"
-                        android:paddingHorizontal="6dp"
+                        android:minHeight="0dp"
+                        android:padding="0dp"
+                        android:singleLine="true"
+                        android:text=""
                         android:textColor="@color/kora_ink"
-                        android:textSize="12sp" />
+                        android:textSize="13sp" />
 
                     <Button
                         android:id="@+id/btnChangeBio"
-                        android:layout_width="wrap_content"
-                        android:layout_height="34dp"
+                        android:layout_width="116dp"
+                        android:layout_height="26dp"
                         android:layout_marginStart="6dp"
-                        android:background="@drawable/bg_box_outline"
+                        android:background="@drawable/bg_btn_neutral"
                         android:fontFamily="monospace"
+                        android:minWidth="0dp"
                         android:minHeight="0dp"
-                        android:paddingHorizontal="8dp"
-                        android:paddingVertical="2dp"
+                        android:paddingHorizontal="4dp"
+                        android:paddingVertical="0dp"
                         android:text="CHANGE BIO"
                         android:textColor="@color/kora_ink"
-                        android:textSize="10sp"
+                        android:textSize="8.5sp"
                         android:textStyle="bold"
                         app:backgroundTint="@null" />
                 </LinearLayout>
@@ -186,7 +202,7 @@
 
         <View
             android:layout_width="match_parent"
-            android:layout_height="2dp"
+            android:layout_height="1.5dp"
             android:layout_marginVertical="16dp"
             android:background="@color/kora_ink" />
 
@@ -204,7 +220,7 @@
                 android:background="@drawable/bg_box_outline"
                 android:orientation="vertical"
                 android:padding="10dp">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:fontFamily="monospace" android:text="TOTAL POINTS" android:textColor="@color/kora_muted" android:textSize="10sp" android:textStyle="bold" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:fontFamily="monospace" android:text="TOTAL POINTS" android:textColor="@color/kora_muted" android:textSize="9.5sp" android:textStyle="bold" />
                 <TextView android:id="@+id/lblTotalScore" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:fontFamily="monospace" android:text="0" android:textColor="@color/kora_ink" android:textSize="16sp" android:textStyle="bold" />
             </LinearLayout>
 
@@ -216,7 +232,7 @@
                 android:background="@drawable/bg_box_outline"
                 android:orientation="vertical"
                 android:padding="10dp">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:fontFamily="monospace" android:text="TOTAL MATCHES" android:textColor="@color/kora_muted" android:textSize="10sp" android:textStyle="bold" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:fontFamily="monospace" android:text="TOTAL MATCHES" android:textColor="@color/kora_muted" android:textSize="9.5sp" android:textStyle="bold" />
                 <TextView android:id="@+id/lblTotalMatches" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:fontFamily="monospace" android:text="0" android:textColor="@color/kora_ink" android:textSize="16sp" android:textStyle="bold" />
             </LinearLayout>
         </LinearLayout>
@@ -235,7 +251,7 @@
                 android:background="@drawable/bg_box_outline"
                 android:orientation="vertical"
                 android:padding="10dp">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:fontFamily="monospace" android:text="WON MATCHES" android:textColor="@color/kora_muted" android:textSize="10sp" android:textStyle="bold" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:fontFamily="monospace" android:text="WON MATCHES" android:textColor="@color/kora_muted" android:textSize="9.5sp" android:textStyle="bold" />
                 <TextView android:id="@+id/lblWins" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:fontFamily="monospace" android:text="0" android:textColor="@color/kora_ink" android:textSize="16sp" android:textStyle="bold" />
             </LinearLayout>
 
@@ -247,7 +263,7 @@
                 android:background="@drawable/bg_box_outline"
                 android:orientation="vertical"
                 android:padding="10dp">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:fontFamily="monospace" android:text="DRAWN MATCHES" android:textColor="@color/kora_muted" android:textSize="10sp" android:textStyle="bold" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:fontFamily="monospace" android:text="DRAWN MATCHES" android:textColor="@color/kora_muted" android:textSize="9.5sp" android:textStyle="bold" />
                 <TextView android:id="@+id/lblDraws" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:fontFamily="monospace" android:text="0" android:textColor="@color/kora_ink" android:textSize="16sp" android:textStyle="bold" />
             </LinearLayout>
         </LinearLayout>
@@ -266,7 +282,7 @@
                 android:background="@drawable/bg_box_outline"
                 android:orientation="vertical"
                 android:padding="10dp">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:fontFamily="monospace" android:text="LOST MATCHES" android:textColor="@color/kora_muted" android:textSize="10sp" android:textStyle="bold" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:fontFamily="monospace" android:text="LOST MATCHES" android:textColor="@color/kora_muted" android:textSize="9.5sp" android:textStyle="bold" />
                 <TextView android:id="@+id/lblLosses" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:fontFamily="monospace" android:text="0" android:textColor="@color/kora_ink" android:textSize="16sp" android:textStyle="bold" />
             </LinearLayout>
 
@@ -278,7 +294,7 @@
                 android:background="@drawable/bg_box_outline"
                 android:orientation="vertical"
                 android:padding="10dp">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:fontFamily="monospace" android:text="AVERAGE OPPONENTS' POINTS" android:textColor="@color/kora_muted" android:textSize="9sp" android:textStyle="bold" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:fontFamily="monospace" android:text="AVERAGE OPPONENTS' POINTS" android:textColor="@color/kora_muted" android:textSize="8.5sp" android:textStyle="bold" />
                 <TextView android:id="@+id/lblAvgOpponentScore" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:fontFamily="monospace" android:text="0" android:textColor="@color/kora_ink" android:textSize="16sp" android:textStyle="bold" />
             </LinearLayout>
         </LinearLayout>
@@ -297,7 +313,7 @@
                 android:background="@drawable/bg_box_outline"
                 android:orientation="vertical"
                 android:padding="10dp">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:fontFamily="monospace" android:text="AVG MOVES IN WON MATCHES" android:textColor="@color/kora_muted" android:textSize="9sp" android:textStyle="bold" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:fontFamily="monospace" android:text="AVG MOVES IN WON MATCHES" android:textColor="@color/kora_muted" android:textSize="8.5sp" android:textStyle="bold" />
                 <TextView android:id="@+id/lblAvgMovesWin" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:fontFamily="monospace" android:text="0" android:textColor="@color/kora_ink" android:textSize="16sp" android:textStyle="bold" />
             </LinearLayout>
 
@@ -309,36 +325,41 @@
                 android:background="@drawable/bg_box_outline"
                 android:orientation="vertical"
                 android:padding="10dp">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:fontFamily="monospace" android:text="AVG MOVES IN LOST MATCHES" android:textColor="@color/kora_muted" android:textSize="9sp" android:textStyle="bold" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:fontFamily="monospace" android:text="AVG MOVES IN LOST MATCHES" android:textColor="@color/kora_muted" android:textSize="8.5sp" android:textStyle="bold" />
                 <TextView android:id="@+id/lblAvgMovesLoss" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:fontFamily="monospace" android:text="0" android:textColor="@color/kora_ink" android:textSize="16sp" android:textStyle="bold" />
             </LinearLayout>
         </LinearLayout>
 
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
         <Button
             android:id="@+id/btnViewMatchHistory"
             android:layout_width="match_parent"
-            android:layout_height="46dp"
-            android:layout_marginTop="22dp"
+            android:layout_height="44dp"
+            android:layout_marginTop="18dp"
             android:background="@drawable/bg_btn_neutral"
             android:fontFamily="monospace"
-            android:text="View match history >"
+            android:text="View match history &gt;"
             android:textAllCaps="false"
             android:textColor="@color/kora_ink"
-            android:textSize="14sp"
+            android:textSize="13sp"
             android:textStyle="bold"
             app:backgroundTint="@null" />
 
         <Button
             android:id="@+id/btnBack"
             android:layout_width="match_parent"
-            android:layout_height="46dp"
+            android:layout_height="40dp"
             android:layout_marginTop="10dp"
             android:background="@drawable/bg_btn_neutral"
             android:fontFamily="monospace"
             android:text="&lt; Back"
             android:textAllCaps="false"
             android:textColor="@color/kora_ink"
-            android:textSize="14sp"
+            android:textSize="13sp"
             android:textStyle="bold"
             app:backgroundTint="@null" />
 

@@ -7,7 +7,10 @@ import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.View
+import android.view.ViewGroup
 import android.view.Window
 import android.widget.Button
 import android.widget.EditText
@@ -31,6 +34,7 @@ class ChangePasswordDialog @JvmOverloads constructor(
     private val playerClientController = PlayerClientController()
     private val ioExecutor = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
+    private var isSubmitting = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -46,6 +50,45 @@ class ChangePasswordDialog @JvmOverloads constructor(
 
         btnConfirm.setOnClickListener(this)
         btnCancel.setOnClickListener(this)
+
+        val watcher = object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                updateConfirmButtonState()
+            }
+            override fun afterTextChanged(s: Editable?) {}
+        }
+        txtOldPassword.addTextChangedListener(watcher)
+        txtNewPassword.addTextChangedListener(watcher)
+        txtConfirmPassword.addTextChangedListener(watcher)
+
+        updateConfirmButtonState()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        val widthPx = (context.resources.displayMetrics.widthPixels * 0.90f).toInt()
+        window?.setLayout(widthPx, ViewGroup.LayoutParams.WRAP_CONTENT)
+    }
+
+    /**
+     * Dung luong nghiep vu Chuc nang 1 (Muc 1.2):
+     * Nut CONFIRM chi active khi: da nhap mat khau cu, mat khau moi >= 6 ky tu va khac mat khau cu,
+     * xac nhan mat khau moi khop voi mat khau moi.
+     */
+    private fun updateConfirmButtonState() {
+        if (isSubmitting) return
+        val oldPass = txtOldPassword.text?.toString() ?: ""
+        val newPass = txtNewPassword.text?.toString() ?: ""
+        val confirmPass = txtConfirmPassword.text?.toString() ?: ""
+
+        val isReady = oldPass.isNotEmpty() &&
+            newPass.length >= 6 &&
+            newPass != oldPass &&
+            confirmPass == newPass
+
+        btnConfirm.isEnabled = isReady
+        btnConfirm.alpha = if (isReady) 1.0f else 0.45f
     }
 
     override fun onClick(v: View?) {
@@ -60,40 +103,15 @@ class ChangePasswordDialog @JvmOverloads constructor(
         val newPass = txtNewPassword.text.toString()
         val confirmPass = txtConfirmPassword.text.toString()
 
-        // Kiem tra dinh dang mat khau moi >= 6 ky tu theo dung thiet ke giao dien 4.1.1
-        if (newPass.length < 6) {
-            KoraNoticeDialog.show(
-                context = context,
-                title = "CHANGE PASSWORD FAILED",
-                message = "Invalid new password format! Password must be at least 6 characters long.",
-                tone = KoraNoticeDialog.Tone.ERROR
-            )
+        if (oldPass.isEmpty() || newPass.length < 6 || newPass == oldPass || confirmPass != newPass) {
+            updateConfirmButtonState()
             return
         }
 
-        // Kiem tra mat khau moi trung mat khau cu
-        if (newPass == oldPass) {
-            KoraNoticeDialog.show(
-                context = context,
-                title = "CHANGE PASSWORD FAILED",
-                message = "New password can not be similar to old password! Enter again.",
-                tone = KoraNoticeDialog.Tone.ERROR
-            )
-            return
-        }
-
-        // Kiem tra xac nhan mat khau moi
-        if (confirmPass != newPass) {
-            KoraNoticeDialog.show(
-                context = context,
-                title = "CHANGE PASSWORD FAILED",
-                message = "Wrong confirm password! Enter again.",
-                tone = KoraNoticeDialog.Tone.ERROR
-            )
-            return
-        }
-
+        isSubmitting = true
         btnConfirm.isEnabled = false
+        btnConfirm.alpha = 0.45f
+
         ioExecutor.execute {
             val success = try {
                 playerClientController.changePassword(player.id, oldPass, newPass)
@@ -102,9 +120,10 @@ class ChangePasswordDialog @JvmOverloads constructor(
             }
 
             mainHandler.post {
-                btnConfirm.isEnabled = true
+                isSubmitting = false
+                updateConfirmButtonState()
                 if (success) {
-                    // Buoc 54-55 trong bieu do tuan tu: cap nhat lai thuoc tinh mat khau cua thuc the Player
+                    // Cap nhat lai thuoc tinh mat khau cua thuc the Player
                     player.setPassword(newPass)
                     KoraNoticeDialog.show(
                         context = context,
@@ -121,9 +140,10 @@ class ChangePasswordDialog @JvmOverloads constructor(
                 } else {
                     KoraNoticeDialog.show(
                         context = context,
-                        title = "CHANGE PASSWORD FAILED",
+                        title = "WRONG PASSWORD",
                         message = "Wrong old password! Enter again.",
-                        tone = KoraNoticeDialog.Tone.ERROR
+                        tone = KoraNoticeDialog.Tone.BRICK,
+                        primaryText = "OK"
                     )
                 }
             }

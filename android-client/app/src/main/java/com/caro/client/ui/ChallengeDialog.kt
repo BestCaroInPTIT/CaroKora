@@ -9,7 +9,9 @@ import android.os.Bundle
 import android.os.CountDownTimer
 import android.os.Handler
 import android.os.Looper
+import android.util.TypedValue
 import android.view.View
+import android.view.ViewGroup
 import android.view.Window
 import android.widget.Button
 import android.widget.LinearLayout
@@ -33,6 +35,7 @@ class ChallengeDialog @JvmOverloads constructor(
     private lateinit var lblMessage: TextView
     private lateinit var lblTimer: TextView
     private lateinit var rowYesNo: LinearLayout
+    private lateinit var rowBottomActions: LinearLayout
     private lateinit var btnYes: Button
     private lateinit var btnNo: Button
     private lateinit var btnCancel: Button
@@ -73,20 +76,12 @@ class ChallengeDialog @JvmOverloads constructor(
                             }
                             "CANCELLED" -> {
                                 stopTimersAndPolling()
-                                if (incomingMatch != null) {
-                                    KoraNoticeDialog.show(
-                                        context = context,
-                                        title = "CHALLENGE CANCELLED",
-                                        message = "${opponent.gameID} cancelled the challenge invitation.",
-                                        tone = KoraNoticeDialog.Tone.INFO
-                                    )
-                                }
                                 dismiss()
                             }
                         }
                     }
                     if (isPolling) {
-                        mainHandler.postDelayed(this, 1500L)
+                        mainHandler.postDelayed(this, 1200L)
                     }
                 }
             }
@@ -104,6 +99,7 @@ class ChallengeDialog @JvmOverloads constructor(
         lblMessage = findViewById(R.id.lblMessage)
         lblTimer = findViewById(R.id.lblTimer)
         rowYesNo = findViewById(R.id.rowYesNo)
+        rowBottomActions = findViewById(R.id.rowBottomActions)
         btnYes = findViewById(R.id.btnYes)
         btnNo = findViewById(R.id.btnNo)
         btnCancel = findViewById(R.id.btnCancel)
@@ -121,38 +117,53 @@ class ChallengeDialog @JvmOverloads constructor(
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        val widthPx = (context.resources.displayMetrics.widthPixels * 0.90f).toInt()
+        window?.setLayout(widthPx, ViewGroup.LayoutParams.WRAP_CONTENT)
+    }
+
     private fun setupConfirmSendState() {
         stopTimersAndPolling()
-        lblTitle.text = "CHALLENGE PLAYER ${opponent.gameID.uppercase()}?"
+        lblTitle.text = "CHALLENGE PLAYER ${opponent.gameID.uppercase(Locale.US)}?"
         lblTitle.setBackgroundColor(ContextCompat.getColor(context, R.color.kora_mint))
-        lblMessage.text = "Do you want to challenge player ${opponent.gameID}?"
+        lblMessage.visibility = View.VISIBLE
+        lblMessage.text = "Do you want to challenge player “${opponent.gameID}”?"
         lblTimer.visibility = View.GONE
         rowYesNo.visibility = View.VISIBLE
         btnYes.isEnabled = true
         btnNo.isEnabled = true
-        btnChallengeAgain.visibility = View.GONE
-        btnCancel.visibility = View.GONE
+        rowBottomActions.visibility = View.GONE
     }
 
     private fun setupWaitingForOpponentState() {
-        lblTitle.text = "CHALLENGE PLAYER ${opponent.gameID.uppercase()}!"
-        lblTitle.setBackgroundColor(ContextCompat.getColor(context, R.color.kora_mint))
-        lblMessage.text = "Waiting for ${opponent.gameID} to accept challenge…"
+        lblTitle.text = "CHALLENGE PLAYER ${opponent.gameID.uppercase(Locale.US)}!"
+        lblTitle.setBackgroundColor(ContextCompat.getColor(context, R.color.kora_sky))
+        lblMessage.visibility = View.VISIBLE
+        lblMessage.text = "Waiting for ${opponent.gameID} to accept challenge..."
         lblTimer.visibility = View.VISIBLE
         lblTimer.text = "02:00"
         rowYesNo.visibility = View.GONE
+
+        rowBottomActions.visibility = View.VISIBLE
         btnChallengeAgain.visibility = View.GONE
+        val lp = (btnCancel.layoutParams as? LinearLayout.LayoutParams)
+            ?: LinearLayout.LayoutParams(dpToPx(160), dpToPx(44))
+        lp.width = dpToPx(160)
+        lp.weight = 0f
+        lp.marginStart = 0
+        btnCancel.layoutParams = lp
         btnCancel.visibility = View.VISIBLE
 
         startTwoMinuteCountdown {
             val activeId = match?.id ?: 0
             if (activeId > 0) {
-                ioExecutor.execute {
+                Thread {
                     try {
                         challengeClientController.cancelChallenge(activeId)
                     } catch (_: Exception) {
                     }
-                }
+                }.start()
             }
             showDeclinedOrExpiredState()
         }
@@ -160,14 +171,14 @@ class ChallengeDialog @JvmOverloads constructor(
     }
 
     private fun setupIncomingChallengeState() {
-        lblTitle.text = "PLAYER ${opponent.gameID.uppercase()} IS CHALLENGING YOU!"
+        lblTitle.text = "PLAYER ${opponent.gameID.uppercase(Locale.US)} IS CHALLENGING YOU!"
         lblTitle.setBackgroundColor(ContextCompat.getColor(context, R.color.kora_amber))
+        lblMessage.visibility = View.VISIBLE
         lblMessage.text = "Accept challenge?"
         lblTimer.visibility = View.VISIBLE
         lblTimer.text = "02:00"
         rowYesNo.visibility = View.VISIBLE
-        btnChallengeAgain.visibility = View.GONE
-        btnCancel.visibility = View.GONE
+        rowBottomActions.visibility = View.GONE
 
         startTwoMinuteCountdown {
             handleIncomingResponse(accept = false)
@@ -177,12 +188,20 @@ class ChallengeDialog @JvmOverloads constructor(
 
     private fun showDeclinedOrExpiredState() {
         stopTimersAndPolling()
-        lblTitle.text = "MAYBE NEXT TIME…"
+        lblTitle.text = "MAYBE NEXT TIME..."
         lblTitle.setBackgroundColor(ContextCompat.getColor(context, R.color.kora_coral))
-        lblMessage.text = "Player ${opponent.gameID} declined or did not respond within 2 minutes."
+        lblMessage.visibility = View.GONE
         lblTimer.visibility = View.GONE
         rowYesNo.visibility = View.GONE
+
+        rowBottomActions.visibility = View.VISIBLE
         btnChallengeAgain.visibility = View.VISIBLE
+        val lp = (btnCancel.layoutParams as? LinearLayout.LayoutParams)
+            ?: LinearLayout.LayoutParams(0, dpToPx(44), 1f)
+        lp.width = 0
+        lp.weight = 1f
+        lp.marginStart = dpToPx(6)
+        btnCancel.layoutParams = lp
         btnCancel.visibility = View.VISIBLE
     }
 
@@ -228,8 +247,9 @@ class ChallengeDialog @JvmOverloads constructor(
                     KoraNoticeDialog.show(
                         context = context,
                         title = "PLAYER UNAVAILABLE",
-                        message = "Player '${opponent.gameID}' is currently unavailable or entered another match.",
-                        tone = KoraNoticeDialog.Tone.WARNING
+                        message = "Player ${opponent.gameID} is in another match.\n\nTry again next time.",
+                        tone = KoraNoticeDialog.Tone.WARNING,
+                        primaryText = "OK"
                     )
                 }
             }
@@ -246,7 +266,7 @@ class ChallengeDialog @JvmOverloads constructor(
         btnNo.isEnabled = false
         stopTimersAndPolling()
 
-        ioExecutor.execute {
+        Thread {
             val updated = try {
                 challengeClientController.respondChallenge(targetMatchId, accept)
             } catch (_: Exception) {
@@ -261,15 +281,9 @@ class ChallengeDialog @JvmOverloads constructor(
                     launchMatchActivity(updated)
                 } else {
                     dismiss()
-                    KoraNoticeDialog.show(
-                        context = context,
-                        title = "CHALLENGE EXPIRED",
-                        message = "This challenge invitation is no longer available.",
-                        tone = KoraNoticeDialog.Tone.WARNING
-                    )
                 }
             }
-        }
+        }.start()
     }
 
     private fun handleCancelPendingChallenge() {
@@ -277,12 +291,12 @@ class ChallengeDialog @JvmOverloads constructor(
         val currentStatus = match?.status ?: ""
         stopTimersAndPolling()
         if (activeId > 0 && currentStatus.equals("PENDING", ignoreCase = true)) {
-            ioExecutor.execute {
+            Thread {
                 try {
                     challengeClientController.cancelChallenge(activeId)
                 } catch (_: Exception) {
                 }
-            }
+            }.start()
         }
         dismiss()
     }
@@ -307,7 +321,7 @@ class ChallengeDialog @JvmOverloads constructor(
     private fun startPollingMatchState() {
         isPolling = true
         mainHandler.removeCallbacks(pollRunnable)
-        mainHandler.postDelayed(pollRunnable, 1200L)
+        mainHandler.postDelayed(pollRunnable, 1000L)
     }
 
     private fun stopTimersAndPolling() {
@@ -329,8 +343,17 @@ class ChallengeDialog @JvmOverloads constructor(
         context.startActivity(intent)
     }
 
+    private fun dpToPx(dp: Int): Int {
+        return TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            dp.toFloat(),
+            context.resources.displayMetrics
+        ).toInt()
+    }
+
     override fun dismiss() {
         stopTimersAndPolling()
         super.dismiss()
+        ioExecutor.shutdownNow()
     }
 }

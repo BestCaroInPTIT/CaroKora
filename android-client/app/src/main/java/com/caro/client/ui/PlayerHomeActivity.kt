@@ -68,6 +68,16 @@ class PlayerHomeActivity : AppCompatActivity(), View.OnClickListener {
         bindPlayerHeader()
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        (intent.getSerializableExtra(EXTRA_PLAYER) as? Player)?.let {
+            player = it
+            SessionManager.savePlayer(this, it)
+            bindPlayerHeader()
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         SessionManager.getPlayer(this)?.let {
@@ -84,8 +94,7 @@ class PlayerHomeActivity : AppCompatActivity(), View.OnClickListener {
     }
 
     private fun bindPlayerHeader() {
-        lblPlayerName.text = "HELLO, ${player.gameID.uppercase()}"
-        findViewById<TextView>(R.id.lblPlayerGameIdSub)?.text = "GAME ID  ·  ${player.gameID}"
+        lblPlayerName.text = "HELLO, ${player.gameID}"
     }
 
     override fun onClick(v: View?) {
@@ -108,13 +117,7 @@ class PlayerHomeActivity : AppCompatActivity(), View.OnClickListener {
                 startActivity(intent)
             }
             R.id.btnViewRanking -> {
-                // Diem tich hop cho thanh vien cung nhom (Nguyen Manh Duc - Chuc nang Bang xep hang)
-                KoraNoticeDialog.show(
-                    context = this,
-                    title = "VIEW RANKING",
-                    message = "Chức năng Xem bảng xếp hạng (RankingActivity) là điểm ghép nối của thành viên Nguyễn Mạnh Đức.",
-                    tone = KoraNoticeDialog.Tone.INFO
-                )
+                // Diem tich hop cho thanh vien Nguyen Manh Duc (RankingActivity): bam vao khong hien thong bao
             }
             R.id.btnLogout -> handleLogout()
         }

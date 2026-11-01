@@ -9,9 +9,12 @@ import android.os.Bundle
 import android.os.CountDownTimer
 import android.os.Handler
 import android.os.Looper
+import android.util.TypedValue
 import android.view.View
+import android.view.ViewGroup
 import android.view.Window
 import android.widget.Button
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import com.caro.client.R
@@ -54,7 +57,7 @@ class FindOpponentDialog(
                     if (matched != null && matched.id > 0) {
                         onMatchFound(matched)
                     } else if (isSearching) {
-                        mainHandler.postDelayed(this, 1500L)
+                        mainHandler.postDelayed(this, 1200L)
                     }
                 }
             }
@@ -80,6 +83,12 @@ class FindOpponentDialog(
         startMatchmakingCycle()
     }
 
+    override fun onStart() {
+        super.onStart()
+        val widthPx = (context.resources.displayMetrics.widthPixels * 0.90f).toInt()
+        window?.setLayout(widthPx, ViewGroup.LayoutParams.WRAP_CONTENT)
+    }
+
     private fun startMatchmakingCycle() {
         stopTimersAndQueueLocal()
         isSearching = true
@@ -90,6 +99,12 @@ class FindOpponentDialog(
         lblTimer.visibility = View.VISIBLE
         lblTimer.text = "02:00"
         btnContinueMatchmaking.visibility = View.GONE
+
+        val cancelLp = (btnCancel.layoutParams as? LinearLayout.LayoutParams)
+            ?: LinearLayout.LayoutParams(dpToPx(160), dpToPx(44))
+        cancelLp.width = dpToPx(160)
+        cancelLp.weight = 0f
+        btnCancel.layoutParams = cancelLp
 
         countDownTimer = object : CountDownTimer(120_000L, 1_000L) {
             override fun onTick(millisUntilFinished: Long) {
@@ -108,18 +123,24 @@ class FindOpponentDialog(
 
     private fun showNoOpponentAvailableState() {
         stopTimersAndQueueLocal()
-        ioExecutor.execute {
+        Thread {
             try {
                 humanMatchClientController.cancelFindMatch(player.id)
             } catch (_: Exception) {
             }
-        }
+        }.start()
 
         lblTitle.text = "NO OPPONENT AVAILABLE!"
-        lblTitle.setBackgroundColor(ContextCompat.getColor(context, R.color.kora_amber))
+        lblTitle.setBackgroundColor(ContextCompat.getColor(context, R.color.kora_coral))
         lblMessage.text = "No player was found within 2 minutes."
         lblTimer.visibility = View.GONE
         btnContinueMatchmaking.visibility = View.VISIBLE
+
+        val cancelLp = (btnCancel.layoutParams as? LinearLayout.LayoutParams)
+            ?: LinearLayout.LayoutParams(0, dpToPx(44), 0.9f)
+        cancelLp.width = 0
+        cancelLp.weight = 0.9f
+        btnCancel.layoutParams = cancelLp
     }
 
     private fun onMatchFound(matched: Match) {
@@ -139,12 +160,12 @@ class FindOpponentDialog(
             R.id.btnContinueMatchmaking -> startMatchmakingCycle()
             R.id.btnCancel -> {
                 stopTimersAndQueueLocal()
-                ioExecutor.execute {
+                Thread {
                     try {
                         humanMatchClientController.cancelFindMatch(player.id)
                     } catch (_: Exception) {
                     }
-                }
+                }.start()
                 dismiss()
             }
         }
@@ -157,8 +178,17 @@ class FindOpponentDialog(
         countDownTimer = null
     }
 
+    private fun dpToPx(dp: Int): Int {
+        return TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            dp.toFloat(),
+            context.resources.displayMetrics
+        ).toInt()
+    }
+
     override fun dismiss() {
         stopTimersAndQueueLocal()
         super.dismiss()
+        ioExecutor.shutdownNow()
     }
 }

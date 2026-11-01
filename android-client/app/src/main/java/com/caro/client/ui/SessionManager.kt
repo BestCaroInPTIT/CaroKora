@@ -16,28 +16,17 @@ object SessionManager {
     private var cachedPlayer: Player? = null
 
     fun initServerUrl(context: Context) {
-        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        val savedUrl = prefs.getString(KEY_SERVER_URL, null)
-        if (!savedUrl.isNullOrBlank()) {
-            ApiClient.customBaseUrl = savedUrl.trimEnd('/')
-        }
+        val defaultUrl = BuildConfig.DEFAULT_BASE_URL.trim().trimEnd('/')
+        ApiClient.customBaseUrl = defaultUrl
+        context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .remove(KEY_SERVER_URL)
+            .apply()
     }
 
     fun getServerUrl(context: Context): String {
-        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        return prefs.getString(KEY_SERVER_URL, null)
-            ?.takeIf { it.isNotBlank() }
-            ?: ApiClient.customBaseUrl
-            ?: BuildConfig.DEFAULT_BASE_URL
-    }
-
-    fun setServerUrl(context: Context, url: String) {
-        val cleaned = url.trim().trimEnd('/')
-        ApiClient.customBaseUrl = cleaned
-        context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-            .edit()
-            .putString(KEY_SERVER_URL, cleaned)
-            .apply()
+        return ApiClient.customBaseUrl?.takeIf { it.isNotBlank() }
+            ?: BuildConfig.DEFAULT_BASE_URL.trim().trimEnd('/')
     }
 
     fun savePlayer(context: Context, player: Player) {

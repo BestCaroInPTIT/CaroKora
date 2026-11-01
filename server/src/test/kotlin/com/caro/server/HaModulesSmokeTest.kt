@@ -14,24 +14,41 @@ import kotlin.test.assertTrue
 class HaModulesSmokeTest {
 
     @Test
-    fun testCaroFiveInARowOutcomeChecker() {
-        val board = GameBoard()
+    fun testCaroFiveInARowAndOpenFourOutcomeChecker() {
         val pX = MatchParticipant(id = 1, side = "X")
-        val moves = arrayListOf(
+        val pO = MatchParticipant(id = 2, side = "O")
+
+        // 1. 4 quan lien tiep khong bi chan dau nao (.XXXX.) -> WIN
+        val openFourBoard = GameBoard()
+        val openFourMoves = arrayListOf(
             Move(row = "H", column = 5, moveOrder = 1, matchParticipant = pX),
             Move(row = "H", column = 6, moveOrder = 3, matchParticipant = pX),
             Move(row = "H", column = 7, moveOrder = 5, matchParticipant = pX),
-            Move(row = "H", column = 8, moveOrder = 7, matchParticipant = pX),
-            Move(row = "H", column = 9, moveOrder = 9, matchParticipant = pX)
+            Move(row = "H", column = 8, moveOrder = 7, matchParticipant = pX)
         )
-        board.rebuildFromMoves(moves)
-        val outcome = CaroOutcomeChecker.checkOutcome(board, moves.last())
-        assertEquals("WIN", outcome)
+        openFourBoard.rebuildFromMoves(openFourMoves)
+        assertEquals("WIN", CaroOutcomeChecker.checkOutcome(openFourBoard, openFourMoves.last()))
+
+        // 2. 4 quan bi chan 1 dau (OXXXX.) -> ONGOING, dat quan thu 5 (OXXXXX) -> WIN
+        val blockedFourBoard = GameBoard()
+        val blockedFourMoves = arrayListOf(
+            Move(row = "H", column = 4, moveOrder = 1, matchParticipant = pO),
+            Move(row = "H", column = 5, moveOrder = 2, matchParticipant = pX),
+            Move(row = "H", column = 6, moveOrder = 3, matchParticipant = pX),
+            Move(row = "H", column = 7, moveOrder = 4, matchParticipant = pX),
+            Move(row = "H", column = 8, moveOrder = 5, matchParticipant = pX)
+        )
+        blockedFourBoard.rebuildFromMoves(blockedFourMoves)
+        assertEquals("ONGOING", CaroOutcomeChecker.checkOutcome(blockedFourBoard, blockedFourMoves.last()))
+
+        val fifthMove = Move(row = "H", column = 9, moveOrder = 6, matchParticipant = pX)
+        blockedFourMoves.add(fifthMove)
+        blockedFourBoard.rebuildFromMoves(blockedFourMoves)
+        assertEquals("WIN", CaroOutcomeChecker.checkOutcome(blockedFourBoard, fifthMove))
     }
 
     @Test
     fun testLiveNeonDaosAndControllersIfConfigured() {
-        // Kiem thu truc tiep tren Neon PostgreSQL khi co file .env
         val playerCtrl = PlayerServerController()
         val challengeCtrl = ChallengeServerController()
 
@@ -48,7 +65,6 @@ class HaModulesSmokeTest {
         val onlineList = challengeCtrl.handleGetOnlinePlayers()
         assertTrue(onlineList.any { it.gameID == "ha88" }, "ha88 should appear in online players list")
 
-        // Dua trang thai ve OFFLINE gon gang sau khi test
         assertTrue(playerCtrl.handleLogout(loggedIn.id))
     }
 }

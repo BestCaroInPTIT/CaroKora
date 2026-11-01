@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="330dp"
+    android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:background="@drawable/bg_box_outline"
     android:orientation="vertical">
@@ -13,9 +13,10 @@
         android:background="@color/kora_sky"
         android:fontFamily="monospace"
         android:gravity="center"
-        android:text="FINDING OPPONENT..."
+        android:paddingHorizontal="8dp"
+        android:text="FINDING AN OPPONENT"
         android:textColor="@color/kora_ink"
-        android:textSize="14sp"
+        android:textSize="13.5sp"
         android:textStyle="bold" />
 
     <View
@@ -29,57 +30,77 @@
         android:background="@color/kora_cream"
         android:gravity="center_horizontal"
         android:orientation="vertical"
-        android:padding="20dp">
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="20dp">
 
         <TextView
             android:id="@+id/lblMessage"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginVertical="8dp"
             android:gravity="center"
             android:lineSpacingExtra="4dp"
-            android:text="Searching for an available human opponent..."
+            android:text="Searching for another player."
             android:textColor="@color/kora_ink"
             android:textSize="14sp" />
 
         <TextView
             android:id="@+id/lblTimer"
-            android:layout_width="140dp"
+            android:layout_width="210dp"
             android:layout_height="48dp"
-            android:layout_marginTop="16dp"
+            android:layout_marginTop="10dp"
             android:background="@color/kora_navy_timer"
             android:fontFamily="monospace"
             android:gravity="center"
             android:text="02:00"
             android:textColor="@color/kora_surface"
-            android:textSize="22sp"
+            android:textSize="21sp"
             android:textStyle="bold" />
 
-        <Button
-            android:id="@+id/btnContinueMatchmaking"
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="44dp"
+            android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:background="@drawable/bg_btn_mint"
-            android:fontFamily="monospace"
-            android:text="CONTINUE MATCHMAKING"
-            android:textColor="@color/kora_ink"
-            android:textSize="12sp"
-            android:textStyle="bold"
-            android:visibility="gone"
-            app:backgroundTint="@null" />
+            android:gravity="center"
+            android:orientation="horizontal">
 
-        <Button
-            android:id="@+id/btnCancel"
-            android:layout_width="match_parent"
-            android:layout_height="44dp"
-            android:layout_marginTop="12dp"
-            android:background="@drawable/bg_btn_blush"
-            android:fontFamily="monospace"
-            android:text="CANCEL"
-            android:textColor="@color/kora_ink"
-            android:textSize="13sp"
-            android:textStyle="bold"
-            app:backgroundTint="@null" />
+            <Button
+                android:id="@+id/btnContinueMatchmaking"
+                android:layout_width="0dp"
+                android:layout_height="44dp"
+                android:layout_marginEnd="6dp"
+                android:layout_weight="1.25"
+                android:background="@drawable/bg_btn_mint"
+                android:fontFamily="monospace"
+                android:maxLines="1"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:paddingHorizontal="4dp"
+                android:singleLine="true"
+                android:text="CONTINUE MATCHMAKING"
+                android:textColor="@color/kora_ink"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:visibility="gone"
+                app:backgroundTint="@null" />
+
+            <Button
+                android:id="@+id/btnCancel"
+                android:layout_width="160dp"
+                android:layout_height="44dp"
+                android:background="@drawable/bg_btn_blush"
+                android:fontFamily="monospace"
+                android:maxLines="1"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:paddingHorizontal="6dp"
+                android:singleLine="true"
+                android:text="CANCEL"
+                android:textColor="@color/kora_ink"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                app:backgroundTint="@null" />
+        </LinearLayout>
 
     </LinearLayout>
 </LinearLayout>

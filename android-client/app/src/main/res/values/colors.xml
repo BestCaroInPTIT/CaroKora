@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Bang mau chuan 100% trich xuat tu file Figma / PPT (D:\ebook\truyen\res\values\colors.xml) -->
     <color name="kora_bg">#FFFFFF</color>
     <color name="kora_surface">#FFFFFF</color>
     <color name="kora_cream">#FFFEF8</color>
@@ -9,13 +8,14 @@
     <color name="kora_zebra">#EAF0F3</color>
     <color name="kora_ink">#1C2434</color>
     <color name="kora_muted">#5D6678</color>
-    <color name="kora_border_subtle">#B8C2CE</color>
+    <color name="kora_border_subtle">#D1D8E0</color>
     <color name="kora_mint">#51D6B2</color>
     <color name="kora_mint_dark">#149D7D</color>
     <color name="kora_blush">#FFE6E2</color>
     <color name="kora_sky">#A8C7F5</color>
     <color name="kora_amber">#F6C65B</color>
     <color name="kora_coral">#FF8078</color>
+    <color name="kora_brick">#C25650</color>
     <color name="kora_navy_timer">#1C2434</color>
     <color name="kora_x">#149D7D</color>
     <color name="kora_o">#FF8078</color>

@@ -25,7 +25,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_centerInParent="true"
-            android:fontFamily="sans-serif-black"
+            android:fontFamily="monospace"
             android:letterSpacing="0.06"
             android:text="GAME MODE"
             android:textColor="@color/kora_ink"
@@ -35,26 +35,20 @@
 
     <View
         android:layout_width="match_parent"
-        android:layout_height="2dp"
-        android:layout_marginBottom="36dp"
+        android:layout_height="1.5dp"
         android:background="@color/kora_ink" />
 
-    <TextView
+    <View
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center"
-        android:letterSpacing="0.05"
-        android:text="CHOOSE HOW TO PLAY"
-        android:textColor="@color/kora_ink"
-        android:textSize="15sp"
-        android:textStyle="bold" />
+        android:layout_height="0dp"
+        android:layout_weight="0.65" />
 
     <Button
         android:id="@+id/btnPlayAgainstHuman"
         android:layout_width="match_parent"
-        android:layout_height="60dp"
-        android:layout_marginTop="28dp"
+        android:layout_height="62dp"
         android:background="@drawable/bg_btn_mint"
+        android:fontFamily="monospace"
         android:text="PLAY AGAINST HUMAN"
         android:textColor="@color/kora_ink"
         android:textSize="15sp"
@@ -64,9 +58,10 @@
     <Button
         android:id="@+id/btnPlayAgainstAI"
         android:layout_width="match_parent"
-        android:layout_height="60dp"
-        android:layout_marginTop="18dp"
+        android:layout_height="62dp"
+        android:layout_marginTop="20dp"
         android:background="@drawable/bg_btn_cream"
+        android:fontFamily="monospace"
         android:text="PLAY AGAINST AI"
         android:textColor="@color/kora_ink"
         android:textSize="15sp"
@@ -76,9 +71,10 @@
     <Button
         android:id="@+id/btnBack"
         android:layout_width="match_parent"
-        android:layout_height="44dp"
-        android:layout_marginTop="24dp"
+        android:layout_height="40dp"
+        android:layout_marginTop="28dp"
         android:background="@drawable/bg_btn_neutral"
+        android:fontFamily="monospace"
         android:text="&lt; Back"
         android:textAllCaps="false"
         android:textColor="@color/kora_ink"
@@ -89,6 +85,6 @@
     <View
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1" />
+        android:layout_weight="1.35" />
 
 </LinearLayout>

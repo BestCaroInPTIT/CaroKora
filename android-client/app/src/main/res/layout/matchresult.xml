@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="330dp"
+    android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:background="@drawable/bg_box_cream"
     android:orientation="vertical">
@@ -11,7 +11,7 @@
         android:layout_width="match_parent"
         android:layout_height="46dp"
         android:background="@color/kora_mint"
-        android:fontFamily="sans-serif-black"
+        android:fontFamily="monospace"
         android:gravity="center"
         android:text="VICTORY"
         android:textColor="@color/kora_ink"
@@ -35,35 +35,33 @@
             android:id="@+id/lblMessage"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:fontFamily="sans-serif-black"
+            android:fontFamily="monospace"
             android:gravity="center"
             android:lineSpacingExtra="4dp"
             android:text="YOU WON!"
             android:textColor="@color/kora_ink"
-            android:textSize="18sp"
+            android:textSize="17sp"
             android:textStyle="bold" />
 
         <TextView
             android:id="@+id/lblPointsEarned"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
+            android:layout_marginTop="14dp"
             android:gravity="center"
             android:text="Points earned: +1.0 point"
             android:textColor="@color/kora_ink"
-            android:textSize="13.5sp"
-            android:textStyle="bold" />
+            android:textSize="13.5sp" />
 
         <TextView
             android:id="@+id/lblTotalPoints"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
+            android:layout_marginTop="10dp"
             android:gravity="center"
-            android:text="Total points: 0.0 points"
-            android:textColor="@color/kora_muted"
-            android:textSize="13sp"
-            android:textStyle="bold" />
+            android:text="Total points: 0 points"
+            android:textColor="@color/kora_ink"
+            android:textSize="13.5sp" />
 
         <TextView
             android:id="@+id/lblRematchPrompt"
@@ -72,13 +70,13 @@
             android:layout_marginTop="16dp"
             android:text="Continue playing?"
             android:textColor="@color/kora_ink"
-            android:textSize="13.5sp"
-            android:textStyle="bold" />
+            android:textSize="13.5sp" />
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="16dp"
+            android:gravity="center"
             android:orientation="horizontal">
 
             <Button
@@ -88,9 +86,11 @@
                 android:layout_marginEnd="6dp"
                 android:layout_weight="1"
                 android:background="@drawable/bg_btn_mint"
+                android:fontFamily="monospace"
+                android:minWidth="0dp"
                 android:text="YES"
                 android:textColor="@color/kora_ink"
-                android:textSize="13sp"
+                android:textSize="12.5sp"
                 android:textStyle="bold"
                 app:backgroundTint="@null" />
 
@@ -101,9 +101,11 @@
                 android:layout_marginStart="6dp"
                 android:layout_weight="1"
                 android:background="@drawable/bg_btn_cream"
+                android:fontFamily="monospace"
+                android:minWidth="0dp"
                 android:text="NO"
                 android:textColor="@color/kora_ink"
-                android:textSize="13sp"
+                android:textSize="12.5sp"
                 android:textStyle="bold"
                 app:backgroundTint="@null" />
         </LinearLayout>

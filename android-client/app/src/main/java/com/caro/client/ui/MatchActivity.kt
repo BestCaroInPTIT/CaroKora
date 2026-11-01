@@ -1,13 +1,22 @@
 package com.caro.client.ui
 
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.ColorFilter
+import android.graphics.Paint
+import android.graphics.PixelFormat
 import android.graphics.Typeface
+import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.LayoutInflater
+import android.view.MotionEvent
+import android.view.ScaleGestureDetector
 import android.view.View
+import android.view.ViewConfiguration
 import android.view.ViewGroup
 import android.widget.BaseAdapter
 import android.widget.Button
@@ -30,11 +39,63 @@ import com.caro.client.entity.Player
 import java.util.Locale
 import java.util.concurrent.Executors
 import kotlin.math.abs
+import kotlin.math.hypot
+import kotlin.math.max
 import kotlin.math.min
 
 class MatchActivity : AppCompatActivity(), View.OnClickListener {
 
     private data class CellCoord(val rowIdx: Int, val colIdx: Int)
+
+    private class BoardCellDrawable(
+        var fillColor: Int,
+        private val innerLineColor: Int,
+        private val outerBorderColor: Int,
+        private val outerStrokePx: Float,
+        private val isTopOuter: Boolean,
+        private val isLeftOuter: Boolean,
+        private val isRightOuter: Boolean,
+        private val isBottomOuter: Boolean
+    ) : Drawable() {
+        private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
+        private val innerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE
+            strokeWidth = 1f
+            color = innerLineColor
+        }
+        private val outerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE
+            strokeWidth = outerStrokePx
+            color = outerBorderColor
+        }
+
+        override fun draw(canvas: Canvas) {
+            val b = bounds
+            val w = b.width().toFloat()
+            val h = b.height().toFloat()
+
+            fillPaint.color = fillColor
+            canvas.drawRect(0f, 0f, w, h, fillPaint)
+
+            if (!isRightOuter) {
+                canvas.drawLine(w - 0.5f, 0f, w - 0.5f, h, innerPaint)
+            }
+            if (!isBottomOuter) {
+                canvas.drawLine(0f, h - 0.5f, w, h - 0.5f, innerPaint)
+            }
+
+            val half = outerStrokePx / 2f
+            if (isTopOuter) canvas.drawLine(0f, half, w, half, outerPaint)
+            if (isLeftOuter) canvas.drawLine(half, 0f, half, h, outerPaint)
+            if (isRightOuter) canvas.drawLine(w - half, 0f, w - half, h, outerPaint)
+            if (isBottomOuter) canvas.drawLine(0f, h - half, w, h - half, outerPaint)
+        }
+
+        override fun setAlpha(alpha: Int) {}
+        override fun setColorFilter(colorFilter: ColorFilter?) {}
+        @Deprecated("Deprecated in Java")
+        override fun getOpacity(): Int = PixelFormat.OPAQUE
+    }
 
     private lateinit var lblOpponentName: TextView
     private lateinit var lblOpponentRank: TextView
@@ -65,7 +126,26 @@ class MatchActivity : AppCompatActivity(), View.OnClickListener {
     private val boardCells = Array(GameBoard.BOARD_DIMENSION) {
         arrayOfNulls<TextView>(GameBoard.BOARD_DIMENSION)
     }
+    private val boardCellDrawables = Array(GameBoard.BOARD_DIMENSION) {
+        arrayOfNulls<BoardCellDrawable>(GameBoard.BOARD_DIMENSION)
+    }
     private lateinit var moveHistoryAdapter: MoveHistoryAdapter
+
+    // Trang thai phong to / thu nho 2 ngon tay va keo ban co ngay trong MatchActivity (khong phat sinh lop thua)
+    private var boardScale = 1.0f
+    private var boardTransX = 0f
+    private var boardTransY = 0f
+    private var boardTouchSlop = 16
+    private var isTouchInBoard = false
+    private var isBoardPanningOrZooming = false
+    private var hasCancelledChildTap = false
+    private var boardActivePointerId = MotionEvent.INVALID_POINTER_ID
+    private var boardDownX = 0f
+    private var boardDownY = 0f
+    private var boardLastX = 0f
+    private var boardLastY = 0f
+    private val boardWindowLoc = IntArray(2)
+    private lateinit var boardScaleDetector: ScaleGestureDetector
 
     private var matchStartEpochMs: Long = System.currentTimeMillis()
     private var turnDeadlineEpochMs: Long = System.currentTimeMillis() + 15_000L
@@ -88,7 +168,7 @@ class MatchActivity : AppCompatActivity(), View.OnClickListener {
         override fun run() {
             if (!hasShownResultDialog) {
                 pollMatchStateFromServer()
-                mainHandler.postDelayed(this, 1200L)
+                mainHandler.postDelayed(this, 1000L)
             }
         }
     }
@@ -109,6 +189,7 @@ class MatchActivity : AppCompatActivity(), View.OnClickListener {
         listMove = ArrayList(match.move)
 
         bindViews()
+        setupBoardZoomGestureDetector()
         resolveParticipants()
         buildCaroBoardGrid()
 
@@ -125,10 +206,167 @@ class MatchActivity : AppCompatActivity(), View.OnClickListener {
                 if (match.status.equals("PLAYING", ignoreCase = true)) {
                     promptStopPlayingConfirmation()
                 } else {
-                    finish()
+                    navigateBackToHome()
                 }
             }
         })
+    }
+
+    private fun setupBoardZoomGestureDetector() {
+        boardTouchSlop = ViewConfiguration.get(this).scaledTouchSlop
+        boardScaleDetector = ScaleGestureDetector(
+            this,
+            object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+                override fun onScaleBegin(detector: ScaleGestureDetector): Boolean {
+                    isBoardPanningOrZooming = true
+                    return true
+                }
+
+                override fun onScale(detector: ScaleGestureDetector): Boolean {
+                    val boardFrame = grdBoard.parent as? View ?: return false
+                    val oldScale = boardScale
+                    val newScale = (oldScale * detector.scaleFactor).coerceIn(1.0f, 3.0f)
+                    if (newScale == oldScale) return true
+
+                    boardFrame.getLocationInWindow(boardWindowLoc)
+                    val cx = boardWindowLoc[0] + boardFrame.width / 2f
+                    val cy = boardWindowLoc[1] + boardFrame.height / 2f
+                    val fx = detector.focusX
+                    val fy = detector.focusY
+                    val ratio = newScale / oldScale
+
+                    boardTransX = (fx - cx) - ratio * ((fx - cx) - boardTransX)
+                    boardTransY = (fy - cy) - ratio * ((fy - cy) - boardTransY)
+                    boardScale = newScale
+
+                    applyBoardTransform()
+                    return true
+                }
+            }
+        )
+    }
+
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        if (::grdBoard.isInitialized && ::boardScaleDetector.isInitialized) {
+            val boardFrame = grdBoard.parent as? View
+            if (boardFrame != null && boardFrame.width > 0 && boardFrame.height > 0) {
+                boardFrame.getLocationInWindow(boardWindowLoc)
+                val left = boardWindowLoc[0].toFloat()
+                val top = boardWindowLoc[1].toFloat()
+                val right = left + boardFrame.width
+                val bottom = top + boardFrame.height
+
+                when (ev.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> {
+                        isTouchInBoard = ev.x in left..right && ev.y in top..bottom
+                        boardActivePointerId = ev.getPointerId(0)
+                        boardDownX = ev.x
+                        boardDownY = ev.y
+                        boardLastX = ev.x
+                        boardLastY = ev.y
+                        isBoardPanningOrZooming = false
+                        hasCancelledChildTap = false
+                    }
+                    MotionEvent.ACTION_POINTER_DOWN -> {
+                        for (i in 0 until ev.pointerCount) {
+                            if (ev.getX(i) in left..right && ev.getY(i) in top..bottom) {
+                                isTouchInBoard = true
+                                break
+                            }
+                        }
+                    }
+                }
+
+                if (isTouchInBoard) {
+                    boardScaleDetector.onTouchEvent(ev)
+                    if (ev.pointerCount >= 2 || boardScaleDetector.isInProgress) {
+                        isBoardPanningOrZooming = true
+                    }
+
+                    when (ev.actionMasked) {
+                        MotionEvent.ACTION_MOVE -> {
+                            val idx = ev.findPointerIndex(boardActivePointerId)
+                            if (idx >= 0) {
+                                val x = ev.getX(idx)
+                                val y = ev.getY(idx)
+                                if (!isBoardPanningOrZooming && boardScale > 1.01f) {
+                                    if (hypot((x - boardDownX).toDouble(), (y - boardDownY).toDouble()) > boardTouchSlop) {
+                                        isBoardPanningOrZooming = true
+                                        boardLastX = x
+                                        boardLastY = y
+                                    }
+                                } else if (isBoardPanningOrZooming && !boardScaleDetector.isInProgress && ev.pointerCount == 1 && boardScale > 1.01f) {
+                                    boardTransX += (x - boardLastX)
+                                    boardTransY += (y - boardLastY)
+                                    applyBoardTransform()
+                                    boardLastX = x
+                                    boardLastY = y
+                                } else {
+                                    boardLastX = x
+                                    boardLastY = y
+                                }
+                            }
+                        }
+                        MotionEvent.ACTION_POINTER_UP -> {
+                            val pIdx = ev.actionIndex
+                            val pId = ev.getPointerId(pIdx)
+                            if (pId == boardActivePointerId) {
+                                val nextIdx = if (pIdx == 0) 1 else 0
+                                if (nextIdx < ev.pointerCount) {
+                                    boardLastX = ev.getX(nextIdx)
+                                    boardLastY = ev.getY(nextIdx)
+                                    boardActivePointerId = ev.getPointerId(nextIdx)
+                                }
+                            }
+                        }
+                    }
+
+                    if (isBoardPanningOrZooming) {
+                        if (!hasCancelledChildTap) {
+                            hasCancelledChildTap = true
+                            val cancelEv = MotionEvent.obtain(ev).apply {
+                                action = MotionEvent.ACTION_CANCEL
+                            }
+                            super.dispatchTouchEvent(cancelEv)
+                            cancelEv.recycle()
+                        }
+                        if (ev.actionMasked == MotionEvent.ACTION_UP || ev.actionMasked == MotionEvent.ACTION_CANCEL) {
+                            isTouchInBoard = false
+                            isBoardPanningOrZooming = false
+                            hasCancelledChildTap = false
+                            boardActivePointerId = MotionEvent.INVALID_POINTER_ID
+                        }
+                        return true
+                    }
+
+                    if (ev.actionMasked == MotionEvent.ACTION_UP || ev.actionMasked == MotionEvent.ACTION_CANCEL) {
+                        isTouchInBoard = false
+                        boardActivePointerId = MotionEvent.INVALID_POINTER_ID
+                    }
+                }
+            }
+        }
+        return super.dispatchTouchEvent(ev)
+    }
+
+    private fun applyBoardTransform() {
+        if (boardScale <= 1.005f) {
+            boardScale = 1.0f
+            boardTransX = 0f
+            boardTransY = 0f
+        } else {
+            val maxDx = max(0f, (grdBoard.width * boardScale - grdBoard.width) / 2f)
+            val maxDy = max(0f, (grdBoard.height * boardScale - grdBoard.height) / 2f)
+            boardTransX = boardTransX.coerceIn(-maxDx, maxDx)
+            boardTransY = boardTransY.coerceIn(-maxDy, maxDy)
+        }
+
+        grdBoard.pivotX = grdBoard.width / 2f
+        grdBoard.pivotY = grdBoard.height / 2f
+        grdBoard.scaleX = boardScale
+        grdBoard.scaleY = boardScale
+        grdBoard.translationX = boardTransX
+        grdBoard.translationY = boardTransY
     }
 
     override fun onResume() {
@@ -169,16 +407,19 @@ class MatchActivity : AppCompatActivity(), View.OnClickListener {
 
     private fun buildCaroBoardGrid() {
         grdBoard.removeAllViews()
+        grdBoard.setBackgroundColor(Color.TRANSPARENT)
+
         val dm = resources.displayMetrics
         val horizontalBudget = dm.widthPixels - dpToPx(28)
-        val verticalBudget = (dm.heightPixels * 0.49f).toInt()
+        val verticalBudget = (dm.heightPixels * 0.48f).toInt()
         val gridDim = GameBoard.BOARD_DIMENSION + 1 // 18x18 (1 hang/cot nhan + 17x17 o co)
         val cellPx = maxOf(dpToPx(15), min(horizontalBudget, verticalBudget) / gridDim)
 
         val inkColor = ContextCompat.getColor(this, R.color.kora_ink)
-        val headerBgColor = ContextCompat.getColor(this, R.color.kora_card)
         val mutedColor = ContextCompat.getColor(this, R.color.kora_muted)
         val surfaceColor = ContextCompat.getColor(this, R.color.kora_surface)
+        val innerLineColor = ContextCompat.getColor(this, R.color.kora_border_subtle)
+        val outerStrokePx = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 1.5f, dm)
 
         for (r in 0..GameBoard.BOARD_DIMENSION) {
             for (c in 0..GameBoard.BOARD_DIMENSION) {
@@ -187,9 +428,9 @@ class MatchActivity : AppCompatActivity(), View.OnClickListener {
                     GridLayout.spec(r),
                     GridLayout.spec(c)
                 ).apply {
-                    width = cellPx - 1
-                    height = cellPx - 1
-                    setMargins(0, 0, 1, 1)
+                    width = cellPx
+                    height = cellPx
+                    setMargins(0, 0, 0, 0)
                 }
                 tv.layoutParams = params
                 tv.gravity = Gravity.CENTER
@@ -198,31 +439,42 @@ class MatchActivity : AppCompatActivity(), View.OnClickListener {
                 when {
                     r == 0 && c == 0 -> {
                         tv.text = ""
-                        tv.setBackgroundColor(headerBgColor)
+                        tv.setBackgroundColor(Color.TRANSPARENT)
                     }
                     r == 0 -> {
                         tv.text = c.toString()
                         tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 8f)
                         tv.setTextColor(mutedColor)
-                        tv.setBackgroundColor(headerBgColor)
+                        tv.setBackgroundColor(Color.TRANSPARENT)
                     }
                     c == 0 -> {
                         tv.text = GameBoard.indexToRow(r - 1).lowercase(Locale.US)
                         tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 8.5f)
                         tv.setTextColor(mutedColor)
-                        tv.setBackgroundColor(headerBgColor)
+                        tv.setBackgroundColor(Color.TRANSPARENT)
                     }
                     else -> {
                         val rowIdx = r - 1
                         val colIdx = c - 1
+                        val cellDrawable = BoardCellDrawable(
+                            fillColor = surfaceColor,
+                            innerLineColor = innerLineColor,
+                            outerBorderColor = inkColor,
+                            outerStrokePx = outerStrokePx,
+                            isTopOuter = rowIdx == 0,
+                            isLeftOuter = colIdx == 0,
+                            isRightOuter = colIdx == GameBoard.BOARD_DIMENSION - 1,
+                            isBottomOuter = rowIdx == GameBoard.BOARD_DIMENSION - 1
+                        )
                         tv.text = ""
                         tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10.5f)
                         tv.setTypeface(Typeface.MONOSPACE, Typeface.BOLD)
                         tv.setTextColor(inkColor)
-                        tv.setBackgroundColor(surfaceColor)
+                        tv.background = cellDrawable
                         tv.tag = CellCoord(rowIdx, colIdx)
                         tv.setOnClickListener(this)
                         boardCells[rowIdx][colIdx] = tv
+                        boardCellDrawables[rowIdx][colIdx] = cellDrawable
                     }
                 }
                 grdBoard.addView(tv)
@@ -272,7 +524,6 @@ class MatchActivity : AppCompatActivity(), View.OnClickListener {
             return
         }
 
-        // Buoc 59-60 trong bieu do tuan tu: dong goi nuoc di vao thuc the Move
         val newMove = Move(
             row = GameBoard.indexToRow(rowIdx),
             column = colIdx + 1,
@@ -289,13 +540,11 @@ class MatchActivity : AppCompatActivity(), View.OnClickListener {
 
             try {
                 if (match.mode.equals("CHALLENGE", ignoreCase = true)) {
-                    // Dung theo bieu do tuan tu Chuc nang 2: makeMove() -> getMoveHistory()
                     updatedMatch = challengeClientController.makeMoveAndGetMatch(newMove)
                     if (updatedMatch != null) {
                         latestMoves = challengeClientController.getMoveHistory(match.id)
                     }
                 } else {
-                    // Dung theo bieu do tuan tu Chuc nang 3: HumanMatchClientController.makeMove()
                     updatedMatch = humanMatchClientController.makeMove(newMove)
                 }
             } catch (_: Exception) {
@@ -369,7 +618,7 @@ class MatchActivity : AppCompatActivity(), View.OnClickListener {
         val mySide = myParticipant?.side ?: "X"
 
         findViewById<TextView>(R.id.lblMatchScreenTitle)?.text =
-            if (match.mode.equals("CHALLENGE", ignoreCase = true)) "MATCH BOARD" else "HUMAN MATCH"
+            if (match.mode.equals("CHALLENGE", ignoreCase = true)) "CHALLENGE MATCH" else "HUMAN MATCH"
 
         lblOpponentName.text = "OPPONENT: ${oppName.uppercase(Locale.US)}"
         lblMatchId.text = "MATCH ID: ${match.id}"
@@ -423,9 +672,12 @@ class MatchActivity : AppCompatActivity(), View.OnClickListener {
                         cellTv.text = ""
                     }
                 }
-                cellTv.setBackgroundColor(
-                    if (r == lastRowIdx && c == lastColIdx) lastMoveBg else surfaceColor
-                )
+                val targetFill = if (r == lastRowIdx && c == lastColIdx) lastMoveBg else surfaceColor
+                val drawable = boardCellDrawables[r][c]
+                if (drawable != null && drawable.fillColor != targetFill) {
+                    drawable.fillColor = targetFill
+                    cellTv.invalidate()
+                }
             }
         }
 
@@ -452,7 +704,6 @@ class MatchActivity : AppCompatActivity(), View.OnClickListener {
         val remainingSec = ((turnDeadlineEpochMs - System.currentTimeMillis()) / 1000L).coerceAtLeast(0L)
         lblTurnTimer.text = String.format(Locale.US, "%02d:%02d", remainingSec / 60, remainingSec % 60)
 
-        // Neu het 15s ma van den luot minh, tu dong danh o trong gan tam ban co nhat de khong treo luot
         val mySide = myParticipant?.side ?: ""
         if (remainingSec == 0L && mySide.equals(match.currentTurn, ignoreCase = true) && !isSubmittingMove) {
             findNearestEmptyCellToCenter()?.let { (r, c) ->
@@ -482,18 +733,20 @@ class MatchActivity : AppCompatActivity(), View.OnClickListener {
 
     private fun promptStopPlayingConfirmation() {
         if (!match.status.equals("PLAYING", ignoreCase = true)) {
-            finish()
+            navigateBackToHome()
             return
         }
 
         KoraNoticeDialog.show(
             context = this,
             title = "STOP PLAYING?",
-            message = "Do you want to stop playing?\nYou will lose 1 point.",
+            message = "Do you want to stop playing?\n\nYou will lose 1 point.",
             tone = KoraNoticeDialog.Tone.ERROR,
             primaryText = "YES, STOP",
+            primaryBgRes = R.drawable.bg_btn_blush,
             onPrimary = { executeStopPlaying() },
-            secondaryText = "NO, CONTINUE"
+            secondaryText = "NO, CONTINUE",
+            secondaryBgRes = R.drawable.bg_btn_mint
         )
     }
 
@@ -535,6 +788,15 @@ class MatchActivity : AppCompatActivity(), View.OnClickListener {
         }
     }
 
+    private fun navigateBackToHome() {
+        val intent = android.content.Intent(this, PlayerHomeActivity::class.java).apply {
+            flags = android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra(PlayerHomeActivity.EXTRA_PLAYER, player)
+        }
+        startActivity(intent)
+        finish()
+    }
+
     private inner class MoveHistoryAdapter : BaseAdapter() {
         override fun getCount(): Int = listMove.size
         override fun getItem(position: Int): Move = listMove[position]
@@ -545,11 +807,8 @@ class MatchActivity : AppCompatActivity(), View.OnClickListener {
                 .inflate(R.layout.item_move_history, parent, false)
 
             val mv = getItem(position)
-            rowView.setBackgroundColor(
-                ContextCompat.getColor(
-                    this@MatchActivity,
-                    if (position % 2 == 1) R.color.kora_zebra else R.color.kora_surface
-                )
+            rowView.setBackgroundResource(
+                if (position % 2 == 1) R.drawable.bg_move_row_zebra else R.drawable.bg_move_row_white
             )
             val lblOrder = rowView.findViewById<TextView>(R.id.lblMoveOrder)
             val lblTime = rowView.findViewById<TextView>(R.id.lblMoveTime)
@@ -571,10 +830,9 @@ class MatchActivity : AppCompatActivity(), View.OnClickListener {
 
         private fun extractShortTime(raw: String?): String {
             if (raw.isNullOrBlank()) return "--:--"
-            // raw co dang "yyyy-MM-dd HH:mm:ss" hoac "HH:mm:ss"
             val parts = raw.trim().split(" ")
             val timePart = if (parts.size >= 2) parts[1] else parts[0]
-            return if (timePart.length >= 8) timePart.substring(0, 8) else timePart
+            return if (timePart.length >= 5) timePart.substring(0, 5) else timePart
         }
     }
 

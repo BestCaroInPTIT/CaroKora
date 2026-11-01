@@ -1,7 +1,10 @@
 package com.caro.client.ui
 
+import android.content.Context
 import android.os.Bundle
 import android.view.View
+import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageView
@@ -44,6 +47,7 @@ class PlayerProfileActivity : AppCompatActivity(), View.OnClickListener {
     private var ps: PlayerStatistic? = null
     private var targetPlayerId: Int = 0
     private var isPublicView: Boolean = false
+    private var isEditingBio: Boolean = false
 
     private val playerClientController = PlayerClientController()
     private val ioExecutor = Executors.newSingleThreadExecutor()
@@ -86,15 +90,25 @@ class PlayerProfileActivity : AppCompatActivity(), View.OnClickListener {
         btnViewMatchHistory.setOnClickListener(this)
         btnBack.setOnClickListener(this)
 
+        lockBioEditing()
+        txtBio.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == EditorInfo.IME_ACTION_DONE) {
+                commitBioSilently()
+                true
+            } else {
+                false
+            }
+        }
+
+        lblTitle.text = "PLAYER PROFILE"
         if (isPublicView) {
-            lblTitle.text = "PUBLIC PROFILE"
             rowPassword.visibility = View.GONE
             btnChangeAvatar.visibility = View.GONE
             btnChangeBio.visibility = View.GONE
             btnViewMatchHistory.visibility = View.GONE
-            txtBio.isEnabled = false
+            btnBack.text = "BACK"
         } else {
-            lblTitle.text = "PLAYER PROFILE"
+            btnBack.text = "< Back"
         }
 
         loadPlayerProfile()
@@ -106,6 +120,13 @@ class PlayerProfileActivity : AppCompatActivity(), View.OnClickListener {
             SessionManager.getPlayer(this)?.let { player = it }
         }
         loadPlayerProfile()
+    }
+
+    override fun onPause() {
+        if (isEditingBio) {
+            commitBioSilently()
+        }
+        super.onPause()
     }
 
     fun loadPlayerProfile() {
@@ -129,26 +150,27 @@ class PlayerProfileActivity : AppCompatActivity(), View.OnClickListener {
     }
 
     private fun bindProfile(stat: PlayerStatistic) {
-        val rankSuffix = if (stat.rank > 0) "  (RANK #${stat.rank})" else ""
-        lblGameID.text = "GAME ID: ${stat.gameID}$rankSuffix"
+        lblGameID.text = "GAME ID: ${stat.gameID}"
         lblFullName.text = "Full Name: ${stat.fullName}"
         lblEmail.text = "Email: ${stat.email}"
         lblPassword.text = "Password: ******"
-        txtBio.setText(stat.bio ?: "")
+        if (!isEditingBio) {
+            txtBio.setText(stat.bio ?: "")
+        }
 
-        lblTotalScore.text = formatDecimal(stat.totalScore)
+        lblTotalScore.text = formatStatNumber(stat.totalScore)
         lblTotalMatches.text = stat.totalMatches.toString()
         lblWins.text = stat.wins.toString()
         lblDraws.text = stat.draws.toString()
         lblLosses.text = stat.losses.toString()
-        lblAvgOpponentScore.text = formatDecimal(stat.averageOpponentScore)
-        lblAvgMovesWin.text = formatDecimal(stat.averageMovesInWin)
-        lblAvgMovesLoss.text = formatDecimal(stat.averageMovesInLoss)
+        lblAvgOpponentScore.text = formatStatNumber(stat.averageOpponentScore)
+        lblAvgMovesWin.text = formatStatNumber(stat.averageMovesInWin)
+        lblAvgMovesLoss.text = formatStatNumber(stat.averageMovesInLoss)
     }
 
-    private fun formatDecimal(value: Double): String {
+    private fun formatStatNumber(value: Double): String {
         return if (value % 1.0 == 0.0) {
-            String.format(Locale.US, "%.1f", value)
+            value.toLong().toString()
         } else {
             String.format(Locale.US, "%.2f", value).trimEnd('0').trimEnd('.')
         }
@@ -157,65 +179,68 @@ class PlayerProfileActivity : AppCompatActivity(), View.OnClickListener {
     override fun onClick(v: View?) {
         when (v?.id) {
             R.id.btnChangePassword -> {
+                if (isEditingBio) commitBioSilently()
                 val activePlayer = player ?: return
                 ChangePasswordDialog(this, activePlayer) {
                     SessionManager.savePlayer(this, activePlayer)
                     loadPlayerProfile()
                 }.show()
             }
-            R.id.btnChangeBio -> handleChangeBio()
+            R.id.btnChangeBio -> toggleBioEditing()
             R.id.btnChangeAvatar -> {
-                KoraNoticeDialog.show(
-                    context = this,
-                    title = "AVATAR",
-                    message = "Default KORA pixel avatar is active for your account.",
-                    tone = KoraNoticeDialog.Tone.INFO
-                )
+                // Khong thuoc pham vi chuc nang ca nhan: bam vao khong thuc hien gi va khong hien thong bao
             }
             R.id.btnViewMatchHistory -> {
-                // Diem tich hop cho thanh vien cung nhom (Nguyen Manh Duc - Chuc nang Lich su dau)
-                KoraNoticeDialog.show(
-                    context = this,
-                    title = "MATCH HISTORY",
-                    message = "Chức năng Xem lịch sử đấu cá nhân (MatchHistoryActivity) là điểm ghép nối của thành viên Nguyễn Mạnh Đức.",
-                    tone = KoraNoticeDialog.Tone.INFO
-                )
+                // Diem tich hop cho thanh vien Nguyen Manh Duc (MatchHistoryActivity): bam vao khong hien thong bao
             }
-            R.id.btnBack -> finish()
+            R.id.btnBack -> {
+                if (isEditingBio) commitBioSilently()
+                finish()
+            }
         }
     }
 
-    private fun handleChangeBio() {
+    private fun lockBioEditing() {
+        isEditingBio = false
+        txtBio.isCursorVisible = false
+        txtBio.isFocusable = false
+        txtBio.isFocusableInTouchMode = false
+    }
+
+    private fun toggleBioEditing() {
+        if (isPublicView) return
+        if (!isEditingBio) {
+            isEditingBio = true
+            txtBio.isFocusableInTouchMode = true
+            txtBio.isFocusable = true
+            txtBio.isCursorVisible = true
+            txtBio.requestFocus()
+            txtBio.setSelection(txtBio.text?.length ?: 0)
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+            imm?.showSoftInput(txtBio, InputMethodManager.SHOW_IMPLICIT)
+        } else {
+            commitBioSilently()
+        }
+    }
+
+    private fun commitBioSilently() {
+        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+        imm?.hideSoftInputFromWindow(txtBio.windowToken, 0)
+        txtBio.clearFocus()
+        lockBioEditing()
+
         val activePlayer = player ?: return
         val newBio = txtBio.text.toString().trim()
-        btnChangeBio.isEnabled = false
-        ioExecutor.execute {
-            val ok = try {
+        if (newBio == (activePlayer.bio ?: "")) return
+        activePlayer.bio = newBio
+        SessionManager.savePlayer(this, activePlayer)
+
+        Thread {
+            try {
                 playerClientController.updateProfile(activePlayer.id, newBio, activePlayer.avatar)
             } catch (_: Exception) {
-                false
             }
-            runOnUiThread {
-                btnChangeBio.isEnabled = true
-                if (ok) {
-                    activePlayer.bio = newBio
-                    SessionManager.savePlayer(this, activePlayer)
-                    KoraNoticeDialog.show(
-                        context = this,
-                        title = "SUCCESS",
-                        message = "Your bio has been updated successfully!",
-                        tone = KoraNoticeDialog.Tone.SUCCESS
-                    )
-                } else {
-                    KoraNoticeDialog.show(
-                        context = this,
-                        title = "UPDATE FAILED",
-                        message = "Could not update bio. Please try again.",
-                        tone = KoraNoticeDialog.Tone.ERROR
-                    )
-                }
-            }
-        }
+        }.start()
     }
 
     override fun onDestroy() {

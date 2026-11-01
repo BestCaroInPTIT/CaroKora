@@ -18,7 +18,7 @@ class MatchDAO : DAO() {
         }
         if (p2Status != "AVAILABLE") return@withConnection null
 
-        // Huy cac loi moi PENDING cu giua 2 nguoi choi
+        // Huy cac loi moi PENDING cu cua nguoi gui
         connection.prepareStatement(
             """
             UPDATE Match SET status = 'CANCELLED', endedAt = CURRENT_TIMESTAMP
@@ -94,14 +94,18 @@ class MatchDAO : DAO() {
         loadMatchInternal(connection, matchId)
     }
 
-    fun createHumanMatch(p1Id: Int, p2Id: Int): Match? = withConnection { connection ->
+    fun createHumanMatch(p1Id: Int, p2Id: Int): Match? = createActiveMatch(p1Id, p2Id, "HUMAN")
+
+    fun createActiveMatch(p1Id: Int, p2Id: Int, mode: String = "HUMAN"): Match? = withConnection { connection ->
+        val normalizedMode = if (mode.equals("CHALLENGE", ignoreCase = true)) "CHALLENGE" else "HUMAN"
         val matchId = connection.prepareStatement(
             """
             INSERT INTO Match (mode, status, startedAt, currentTurn, turnTimeLimit, boardSize)
-            VALUES ('HUMAN', 'PLAYING', CURRENT_TIMESTAMP, 'X', 15, '17x17')
+            VALUES (?, 'PLAYING', CURRENT_TIMESTAMP, 'X', 15, '17x17')
             RETURNING id
             """.trimIndent()
         ).use { ps ->
+            ps.setString(1, normalizedMode)
             ps.executeQuery().use { rs -> if (rs.next()) rs.getInt(1) else 0 }
         }
         if (matchId <= 0) return@withConnection null

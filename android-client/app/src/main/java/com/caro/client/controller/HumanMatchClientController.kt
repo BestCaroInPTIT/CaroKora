@@ -5,7 +5,7 @@ import com.caro.client.entity.Move
 
 class HumanMatchClientController : ApiClient() {
 
-    data class RematchResp(val status: String = "REFUSED", val match: Match? = null)
+    data class RematchResp(val status: String = "PENDING", val match: Match? = null)
 
     fun findAndCreateMatch(playerId: Int): Match? {
         val payload = mapOf("playerId" to playerId)
@@ -33,6 +33,10 @@ class HumanMatchClientController : ApiClient() {
             "accept" to accept
         )
         return postJson("/api/human-match/rematch", payload, RematchResp::class.java)
+    }
+
+    fun getRematchStatus(oldMatchId: Int): RematchResp? {
+        return getJson("/api/human-match/rematch/$oldMatchId", RematchResp::class.java)
     }
 
     fun getMatchState(matchId: Int): Match? {

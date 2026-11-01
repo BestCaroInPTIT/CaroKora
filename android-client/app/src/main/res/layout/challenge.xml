@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="330dp"
+    android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:background="@drawable/bg_box_outline"
     android:orientation="vertical">
@@ -10,12 +10,13 @@
         android:id="@+id/lblTitle"
         android:layout_width="match_parent"
         android:layout_height="46dp"
-        android:background="@color/kora_amber"
+        android:background="@color/kora_mint"
         android:fontFamily="monospace"
         android:gravity="center"
+        android:paddingHorizontal="8dp"
         android:text="CHALLENGE PLAYER"
         android:textColor="@color/kora_ink"
-        android:textSize="14sp"
+        android:textSize="13.5sp"
         android:textStyle="bold" />
 
     <View
@@ -29,12 +30,14 @@
         android:background="@color/kora_cream"
         android:gravity="center_horizontal"
         android:orientation="vertical"
-        android:padding="20dp">
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="20dp">
 
         <TextView
             android:id="@+id/lblMessage"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginVertical="8dp"
             android:gravity="center"
             android:lineSpacingExtra="4dp"
             android:text="Do you want to challenge this player?"
@@ -43,15 +46,15 @@
 
         <TextView
             android:id="@+id/lblTimer"
-            android:layout_width="140dp"
-            android:layout_height="46dp"
-            android:layout_marginTop="14dp"
+            android:layout_width="210dp"
+            android:layout_height="48dp"
+            android:layout_marginTop="10dp"
             android:background="@color/kora_navy_timer"
             android:fontFamily="monospace"
             android:gravity="center"
             android:text="02:00"
             android:textColor="@color/kora_surface"
-            android:textSize="20sp"
+            android:textSize="21sp"
             android:textStyle="bold"
             android:visibility="gone" />
 
@@ -59,7 +62,7 @@
             android:id="@+id/rowYesNo"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="18dp"
+            android:layout_marginTop="16dp"
             android:orientation="horizontal">
 
             <Button
@@ -70,9 +73,10 @@
                 android:layout_weight="1"
                 android:background="@drawable/bg_btn_mint"
                 android:fontFamily="monospace"
+                android:minWidth="0dp"
                 android:text="YES"
                 android:textColor="@color/kora_ink"
-                android:textSize="13sp"
+                android:textSize="12.5sp"
                 android:textStyle="bold"
                 app:backgroundTint="@null" />
 
@@ -83,40 +87,59 @@
                 android:layout_marginStart="6dp"
                 android:layout_weight="1"
                 android:background="@drawable/bg_btn_cream"
+                android:fontFamily="monospace"
+                android:minWidth="0dp"
                 android:text="NO"
                 android:textColor="@color/kora_ink"
-                android:textSize="13sp"
+                android:textSize="12.5sp"
                 android:textStyle="bold"
                 app:backgroundTint="@null" />
         </LinearLayout>
 
-        <Button
-            android:id="@+id/btnChallengeAgain"
+        <LinearLayout
+            android:id="@+id/rowBottomActions"
             android:layout_width="match_parent"
-            android:layout_height="44dp"
-            android:layout_marginTop="14dp"
-            android:background="@drawable/bg_btn_mint"
-            android:fontFamily="monospace"
-            android:text="CHALLENGE AGAIN"
-            android:textColor="@color/kora_ink"
-            android:textSize="13sp"
-            android:textStyle="bold"
-            android:visibility="gone"
-            app:backgroundTint="@null" />
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:visibility="gone">
 
-        <Button
-            android:id="@+id/btnCancel"
-            android:layout_width="match_parent"
-            android:layout_height="44dp"
-            android:layout_marginTop="10dp"
-            android:background="@drawable/bg_btn_blush"
-            android:fontFamily="monospace"
-            android:text="CANCEL"
-            android:textColor="@color/kora_ink"
-            android:textSize="13sp"
-            android:textStyle="bold"
-            android:visibility="gone"
-            app:backgroundTint="@null" />
+            <Button
+                android:id="@+id/btnChallengeAgain"
+                android:layout_width="0dp"
+                android:layout_height="44dp"
+                android:layout_marginEnd="6dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_btn_mint"
+                android:fontFamily="monospace"
+                android:maxLines="1"
+                android:minWidth="0dp"
+                android:paddingHorizontal="4dp"
+                android:singleLine="true"
+                android:text="CHALLENGE AGAIN"
+                android:textColor="@color/kora_ink"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:visibility="gone"
+                app:backgroundTint="@null" />
+
+            <Button
+                android:id="@+id/btnCancel"
+                android:layout_width="160dp"
+                android:layout_height="44dp"
+                android:background="@drawable/bg_btn_blush"
+                android:fontFamily="monospace"
+                android:maxLines="1"
+                android:minWidth="0dp"
+                android:paddingHorizontal="6dp"
+                android:singleLine="true"
+                android:text="CANCEL"
+                android:textColor="@color/kora_ink"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                app:backgroundTint="@null" />
+        </LinearLayout>
 
     </LinearLayout>
 </LinearLayout>

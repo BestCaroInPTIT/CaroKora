@@ -6,9 +6,11 @@ import com.caro.server.entity.Move
 object CaroOutcomeChecker {
 
     /**
-     * Kiem tra ket qua tran dau Caro 17x17 sau nuoc di moi nhat:
-     * - "WIN": dat duoc >= 5 quan lien tiep theo ngang, doc, cheo chinh hoac cheo phu
-     * - "DRAW": ban co da kin 289 o ma chua ai thang
+     * Kiem tra ket qua tran dau Caro 17x17 sau nuoc di moi nhat (theo dung muc 1.4 bao cao):
+     * - "WIN":
+     *    + Dat duoc >= 5 quan lien tiep theo ngang, doc, cheo chinh hoac cheo phu; HOAC
+     *    + Dat duoc 4 quan lien tiep khong bi chan dau nao (.XXXX. - ca hai dau deu con o trong '.')
+     * - "DRAW": ban co da kin het 289 o trong ma chua ben nao thang
      * - "ONGOING": tran dau tiep tuc
      */
     fun checkOutcome(board: GameBoard, lastMove: Move): String {
@@ -29,11 +31,32 @@ object CaroOutcomeChecker {
         )
 
         for (dir in directions) {
-            var count = 1
-            count += countDirection(board, r, c, dir[0], dir[1], symbol)
-            count += countDirection(board, r, c, -dir[0], -dir[1], symbol)
-            if (count >= 5) {
+            val dR = dir[0]
+            val dC = dir[1]
+            val forward = countDirection(board, r, c, dR, dC, symbol)
+            val backward = countDirection(board, r, c, -dR, -dC, symbol)
+            val total = 1 + forward + backward
+
+            if (total >= 5) {
                 return "WIN"
+            }
+
+            if (total == 4) {
+                val afterR = r + (forward + 1) * dR
+                val afterC = c + (forward + 1) * dC
+                val beforeR = r - (backward + 1) * dR
+                val beforeC = c - (backward + 1) * dC
+
+                val afterOpen = afterR in 0 until GameBoard.BOARD_DIMENSION &&
+                    afterC in 0 until GameBoard.BOARD_DIMENSION &&
+                    board.getCell(afterR, afterC) == '.'
+                val beforeOpen = beforeR in 0 until GameBoard.BOARD_DIMENSION &&
+                    beforeC in 0 until GameBoard.BOARD_DIMENSION &&
+                    board.getCell(beforeR, beforeC) == '.'
+
+                if (afterOpen && beforeOpen) {
+                    return "WIN"
+                }
             }
         }
 
