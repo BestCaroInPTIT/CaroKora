@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.CaroGame" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <item name="colorPrimary">@color/kora_ink</item>
+        <item name="colorPrimaryVariant">@color/kora_navy_timer</item>
+        <item name="colorOnPrimary">@color/kora_surface</item>
+        <item name="colorSecondary">@color/kora_mint</item>
+        <item name="android:statusBarColor">@color/kora_ink</item>
+        <item name="android:windowBackground">@color/kora_bg</item>
+    </style>
+</resources>

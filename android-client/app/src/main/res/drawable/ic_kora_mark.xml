@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="18dp"
+    android:height="18dp"
+    android:viewportWidth="12"
+    android:viewportHeight="12">
+    <!-- Bieu tuong 6 o pixel goc trai thanh tieu de cua moi man hinh Figma -->
+    <path
+        android:fillColor="#1C2434"
+        android:pathData="M1,1h2.5v2.5h-2.5zM7.5,1h2.5v2.5h-2.5zM1,4.5h2.5v2.5h-2.5zM4.25,4.5h2.5v2.5h-2.5zM4.25,8h2.5v2.5h-2.5zM7.5,8h2.5v2.5h-2.5z" />
+</vector>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="72dp"
+    android:height="72dp"
+    android:viewportWidth="40"
+    android:viewportHeight="40">
+    <!-- Nen kem #FFF3D2 + 6 khoi pixel #1C2434 chuan theo Figma Slide 1 & Slide 12 -->
+    <path
+        android:fillColor="#FFF3D2"
+        android:pathData="M0,0h40v40h-40z" />
+    <path
+        android:fillColor="#1C2434"
+        android:pathData="M6,6h6v6h-6zM22,6h6v6h-6zM6,14h6v6h-6zM14,14h6v6h-6zM14,22h6v6h-6zM22,22h6v6h-6z" />
+</vector>

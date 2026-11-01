@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: caro-game-server
+    runtime: docker
+    rootDir: server
+    region: singapore
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false

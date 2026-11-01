@@ -1,0 +1,27 @@
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+.neon
+
+# Local AI Agent Skills & Personal Draft Docs
+.agents/
+skills-lock.json
+doc/
+
+# Gradle & Build
+.gradle/
+**/build/
+!**/gradle/wrapper/gradle-wrapper.jar
+
+# Android Studio / IntelliJ IDEA
+.idea/
+*.iml
+local.properties
+captures/
+.externalNativeBuild/
+.cxx/
+
+# OS
+.DS_Store
+Thumbs.db

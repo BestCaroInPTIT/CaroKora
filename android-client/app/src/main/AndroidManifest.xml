@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:allowBackup="true"
+        android:label="KORA Caro"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.CaroGame"
+        android:usesCleartextTraffic="true">
+
+        <activity
+            android:name=".ui.LoginActivity"
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".ui.PlayerHomeActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.PlayerProfileActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustPan" />
+
+        <activity
+            android:name=".ui.OnlinePlayersActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustPan" />
+
+        <activity
+            android:name=".ui.GameModeActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.MatchActivity"
+            android:exported="false" />
+
+        <!-- Thanh vien cung nhom (Nguyen Manh Duc) khai bao cac Activity F3, F4, F5 tai day -->
+    </application>
+
+</manifest>

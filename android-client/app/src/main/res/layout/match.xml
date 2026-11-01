@@ -1,0 +1,295 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/kora_bg"
+    android:orientation="vertical"
+    android:paddingHorizontal="12dp"
+    android:paddingVertical="8dp">
+
+    <!-- 1. Thanh tieu de chuan Figma Slide 15 & Slide 25 -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingVertical="4dp">
+
+        <ImageView
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:contentDescription="Kora Mark"
+            android:src="@drawable/ic_kora_mark" />
+
+        <TextView
+            android:id="@+id/lblMatchScreenTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:fontFamily="sans-serif-black"
+            android:letterSpacing="0.06"
+            android:text="HUMAN MATCH"
+            android:textColor="@color/kora_ink"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+    </RelativeLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="2dp"
+        android:layout_marginBottom="6dp"
+        android:background="@color/kora_ink" />
+
+    <!-- 2. Thong tin doi thu & Match ID chuan Figma: OPPONENT: BN | RANK #16 / MATCH ID: 56 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/lblOpponentName"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="OPPONENT: BN"
+            android:textColor="@color/kora_ink"
+            android:textSize="12.5sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/lblOpponentRank"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="RANK #-"
+            android:textColor="@color/kora_muted"
+            android:textSize="11.5sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/lblMatchId"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="1dp"
+        android:text="MATCH ID: 0"
+        android:textColor="@color/kora_muted"
+        android:textSize="11sp"
+        android:textStyle="bold" />
+
+    <!-- 3. Ban co Caro 17x17 kem nhan cot 1..17 va hang a..q -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:gravity="center">
+
+        <GridLayout
+            android:id="@+id/grdBoard"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:background="@color/kora_ink"
+            android:columnCount="18"
+            android:padding="1dp"
+            android:rowCount="18" />
+    </FrameLayout>
+
+    <!-- 4. Hai hop TOTAL PLAYED TIME | TURN TIMER ben duoi ban co chuan Figma -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="5dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_box_outline"
+            android:orientation="vertical"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="5dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="TOTAL PLAYED TIME"
+                android:textColor="@color/kora_muted"
+                android:textSize="9.5sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/lblPlayedTime"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="monospace"
+                android:text="00:00"
+                android:textColor="@color/kora_ink"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="5dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_box_outline"
+            android:orientation="vertical"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="5dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="TURN TIMER"
+                android:textColor="@color/kora_muted"
+                android:textSize="9.5sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/lblTurnTimer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="monospace"
+                android:text="00:15"
+                android:textColor="@color/kora_ink"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- 5. Hang luot di hien tai + so nuoc di 2 ben chuan Figma -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:id="@+id/imgCurrentTurnAvatar"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:background="@drawable/bg_box_outline"
+            android:padding="2dp"
+            android:src="@drawable/ic_kora_avatar" />
+
+        <TextView
+            android:id="@+id/lblCurrentTurn"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:text="YOUR TURN  ·  X"
+            android:textColor="@color/kora_ink"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="end"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/lblPlayerMoves"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Your moves: 0"
+                android:textColor="@color/kora_ink"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/lblOpponentMoves"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Opponent moves: 0"
+                android:textColor="@color/kora_muted"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- 6. Bang lich su nuoc di: Header nen #1C2434 chu trang (ID | TIME | TURN | MOVE) + ListView zebra -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="6dp"
+        android:layout_weight="1"
+        android:background="@drawable/bg_box_outline"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="24dp"
+            android:background="@color/kora_ink"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="8dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="0.6"
+                android:text="ID"
+                android:textColor="@color/kora_surface"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1.1"
+                android:text="TIME"
+                android:textColor="@color/kora_surface"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1.3"
+                android:text="TURN"
+                android:textColor="@color/kora_surface"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="0.9"
+                android:gravity="end"
+                android:text="MOVE"
+                android:textColor="@color/kora_surface"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <ListView
+            android:id="@+id/lwMoveHistory"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:divider="@null"
+            android:dividerHeight="0dp"
+            android:transcriptMode="alwaysScroll" />
+    </LinearLayout>
+
+    <!-- 7. Nut STOP PLAYING full-width duoi cung chuan Figma Slide 15 & Slide 25 -->
+    <Button
+        android:id="@+id/btnStopPlaying"
+        android:layout_width="match_parent"
+        android:layout_height="42dp"
+        android:layout_marginTop="6dp"
+        android:background="@drawable/bg_btn_mint"
+        android:text="STOP PLAYING"
+        android:textColor="@color/kora_ink"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        app:backgroundTint="@null" />
+
+</LinearLayout>
