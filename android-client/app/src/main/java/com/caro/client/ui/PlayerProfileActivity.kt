@@ -11,19 +11,17 @@ import androidx.appcompat.app.AppCompatActivity
 import com.caro.client.R
 import com.caro.client.controller.ApiClient
 import com.caro.client.controller.PlayerClientController
-import com.caro.client.entity.Player
 import com.caro.client.entity.PlayerStatistic
 import java.util.Locale
 
 class PlayerProfileActivity : AppCompatActivity(), View.OnClickListener {
 
-    private lateinit var lblTitle: TextView
     private lateinit var imgAvatar: ImageView
     private lateinit var lblGameID: TextView
     private lateinit var lblFullName: TextView
     private lateinit var lblEmail: TextView
     private lateinit var lblPassword: TextView
-    private lateinit var txtBio: EditText
+    private lateinit var lblBio: EditText
     private lateinit var lblTotalScore: TextView
     private lateinit var lblTotalMatches: TextView
     private lateinit var lblWins: TextView
@@ -39,24 +37,20 @@ class PlayerProfileActivity : AppCompatActivity(), View.OnClickListener {
     private lateinit var btnViewMatchHistory: Button
     private lateinit var btnBack: Button
 
-    private var player: Player? = null
     private var ps: PlayerStatistic? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.playerprofile)
 
-        player = (intent.getSerializableExtra("extra_player") as? Player)
-            ?: ApiClient.getPlayer(this)
         val isPublicView = intent.getBooleanExtra("extra_is_public", false)
-
-        lblTitle = findViewById(R.id.lblTitle)
+        val lblTitle = findViewById<TextView>(R.id.lblTitle)
         imgAvatar = findViewById(R.id.imgAvatar)
         lblGameID = findViewById(R.id.lblGameID)
         lblFullName = findViewById(R.id.lblFullName)
         lblEmail = findViewById(R.id.lblEmail)
         lblPassword = findViewById(R.id.lblPassword)
-        txtBio = findViewById(R.id.txtBio)
+        lblBio = findViewById(R.id.txtBio)
         lblTotalScore = findViewById(R.id.lblTotalScore)
         lblTotalMatches = findViewById(R.id.lblTotalMatches)
         lblWins = findViewById(R.id.lblWins)
@@ -93,12 +87,9 @@ class PlayerProfileActivity : AppCompatActivity(), View.OnClickListener {
 
     public override fun onResume() {
         super.onResume()
-        val isPublicView = intent.getBooleanExtra("extra_is_public", false)
-        if (!isPublicView) {
-            ApiClient.getPlayer(this)?.let { player = it }
-        }
-        val targetPlayerId = intent.getIntExtra("extra_target_player_id", player?.id ?: 0)
-        val idToLoad = if (targetPlayerId > 0) targetPlayerId else (player?.id ?: 0)
+        val currentPlayer = ApiClient.getPlayer(this)
+        val targetPlayerId = intent.getIntExtra("extra_target_player_id", currentPlayer?.id ?: 0)
+        val idToLoad = if (targetPlayerId > 0) targetPlayerId else (currentPlayer?.id ?: 0)
         if (idToLoad <= 0) return
 
         val playerClientController = PlayerClientController()
@@ -124,7 +115,7 @@ class PlayerProfileActivity : AppCompatActivity(), View.OnClickListener {
                 lblFullName.text = "Full Name: ${fetched.fullName}"
                 lblEmail.text = "Email: ${fetched.email}"
                 lblPassword.text = "Password: ******"
-                txtBio.setText(fetched.bio ?: "")
+                lblBio.setText(fetched.bio ?: "")
 
                 lblTotalScore.text = fmt(fetched.totalScore)
                 lblTotalMatches.text = fetched.totalMatches.toString()
@@ -141,7 +132,7 @@ class PlayerProfileActivity : AppCompatActivity(), View.OnClickListener {
     override fun onClick(v: View?) {
         when (v?.id) {
             R.id.btnChangePassword -> {
-                val activePlayer = player ?: return
+                val activePlayer = ps ?: ApiClient.getPlayer(this) ?: return
                 ChangePasswordDialog(this, activePlayer).show()
             }
             R.id.btnChangeBio -> {

@@ -27,12 +27,13 @@ class PlayerHomeActivity : AppCompatActivity(), View.OnClickListener {
     private lateinit var btnLogout: Button
 
     private lateinit var player: Player
-    private var activeChallengeDialog: ChallengeDialog? = null
-    private var lastShownChallengeMatchId: Int = -1
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.playerhome)
+
+        var activeChallengeDialog: ChallengeDialog? = null
+        var lastShownChallengeMatchId: Int = -1
 
         val resolvedPlayer = (intent.getSerializableExtra("extra_player") as? Player)
             ?: ApiClient.getPlayer(this)

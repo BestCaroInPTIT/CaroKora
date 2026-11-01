@@ -17,7 +17,6 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import com.caro.client.R
-import com.caro.client.controller.ApiClient
 import com.caro.client.controller.HumanMatchClientController
 import com.caro.client.entity.Match
 import com.caro.client.entity.Player
@@ -25,29 +24,17 @@ import java.util.Locale
 
 class MatchResultDialog(
     context: Context,
-    private val player: Player,
-    private val match: Match,
-    private val totalScore: Double = 0.0
+    private var player: Player,
+    private var match: Match,
+    totalScore: Double = 0.0
 ) : Dialog(context), View.OnClickListener {
 
     private var lblResultTitle: TextView
     private var lblMessage: TextView
     private var lblPointsEarned: TextView
     private var lblTotalPoints: TextView
-    private var lblRematchPrompt: TextView
     private var btnYesRematch: Button
     private var btnNoHome: Button
-
-    private val humanMatchClientController = HumanMatchClientController()
-    private val mainHandler = Handler(Looper.getMainLooper())
-    private val isStoppedMatch: Boolean
-    private var isMonitoringRematch = false
-    private var hasAcceptedRematch = false
-    private var hasHandledOutcome = false
-    private var rematchPollAttempts = 0
-
-    private var triggerPollAction: (() -> Unit)? = null
-    private var navigateHomeAction: (() -> Unit)? = null
 
     init {
         requestWindowFeature(Window.FEATURE_NO_TITLE)
@@ -59,12 +46,20 @@ class MatchResultDialog(
         lblMessage = findViewById(R.id.lblMessage)
         lblPointsEarned = findViewById(R.id.lblPointsEarned)
         lblTotalPoints = findViewById(R.id.lblTotalPoints)
-        lblRematchPrompt = findViewById(R.id.lblRematchPrompt)
+        val lblRematchPrompt = findViewById<TextView>(R.id.lblRematchPrompt)
         btnYesRematch = findViewById(R.id.btnYesRematch)
         btnNoHome = findViewById(R.id.btnNoHome)
 
         btnYesRematch.setOnClickListener(this)
         btnNoHome.setOnClickListener(this)
+
+        val humanMatchClientController = HumanMatchClientController()
+        val mainHandler = Handler(Looper.getMainLooper())
+        val isStoppedMatch = match.status.equals("STOPPED", ignoreCase = true)
+        var isMonitoringRematch = false
+        var hasAcceptedRematch = false
+        var hasHandledOutcome = false
+        var rematchPollAttempts = 0
 
         val dm = context.resources.displayMetrics
         fun dp(v: Int): Int = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v.toFloat(), dm).toInt()
@@ -73,7 +68,6 @@ class MatchResultDialog(
         val oppName = match.matchParticipant.firstOrNull { it.player?.id != player.id }?.player?.gameID ?: "Opponent"
         val outcome = myPart?.outcome?.uppercase(Locale.US) ?: "LOSS"
         val earned = myPart?.score ?: 0.0
-        isStoppedMatch = match.status.equals("STOPPED", ignoreCase = true)
 
         when {
             isStoppedMatch && outcome == "WIN" -> {
@@ -133,7 +127,6 @@ class MatchResultDialog(
             hostActivity?.finish()
             Unit
         }
-        navigateHomeAction = navigateHome
 
         data class RematchResp(val status: String = "PENDING", val match: Match? = null)
 
@@ -178,7 +171,8 @@ class MatchResultDialog(
             }
         }
 
-        val rematchPollRunnable = object : Runnable {
+        lateinit var rematchPollRunnable: Runnable
+        rematchPollRunnable = object : Runnable {
             override fun run() {
                 if (!isMonitoringRematch || hasHandledOutcome) return
                 if (hasAcceptedRematch) {
@@ -240,10 +234,48 @@ class MatchResultDialog(
                 }.start()
             }
         }
-        triggerPollAction = {
-            mainHandler.removeCallbacks(rematchPollRunnable)
-            mainHandler.post(rematchPollRunnable)
+
+        val onYesClicked = {
+            if (isStoppedMatch) {
+                dismiss()
+                navigateHome()
+            } else if (!hasAcceptedRematch && !hasHandledOutcome) {
+                hasAcceptedRematch = true
+                rematchPollAttempts = 0
+                btnYesRematch.isEnabled = false
+                btnYesRematch.text = "WAITING..."
+                lblRematchPrompt.text = "Waiting for opponent... (${countdownSec}s)"
+                mainHandler.removeCallbacks(rematchPollRunnable)
+                mainHandler.post(rematchPollRunnable)
+            }
         }
+
+        val onNoClicked = {
+            if (!hasHandledOutcome) {
+                hasHandledOutcome = true
+                isMonitoringRematch = false
+                mainHandler.removeCallbacksAndMessages(null)
+
+                val targetOldMatchId = match.id
+                val currentPlayerId = player.id
+                Thread {
+                    try {
+                        humanMatchClientController.postJson<Map<String, Any>>(
+                            "/api/human-match/rematch",
+                            mapOf("oldMatchId" to targetOldMatchId, "playerId" to currentPlayerId, "accept" to false),
+                            Map::class.java
+                        )
+                    } catch (_: Exception) {
+                    }
+                }.start()
+
+                dismiss()
+                navigateHome()
+            }
+        }
+
+        btnYesRematch.setTag(R.id.btnYesRematch, onYesClicked)
+        btnNoHome.setTag(R.id.btnYesRematch, onNoClicked)
 
         if (isStoppedMatch) {
             btnNoHome.visibility = View.GONE
@@ -273,43 +305,7 @@ class MatchResultDialog(
     }
 
     override fun onClick(v: View?) {
-        when (v?.id) {
-            R.id.btnYesRematch -> {
-                if (isStoppedMatch) {
-                    dismiss()
-                    navigateHomeAction?.invoke()
-                } else if (!hasAcceptedRematch && !hasHandledOutcome) {
-                    hasAcceptedRematch = true
-                    rematchPollAttempts = 0
-                    btnYesRematch.isEnabled = false
-                    btnYesRematch.text = "WAITING..."
-                    lblRematchPrompt.text = "Waiting for your opponent to accept rematch..."
-                    triggerPollAction?.invoke()
-                }
-            }
-            R.id.btnNoHome -> {
-                if (!hasHandledOutcome) {
-                    hasHandledOutcome = true
-                    isMonitoringRematch = false
-                    mainHandler.removeCallbacksAndMessages(null)
-
-                    val targetOldMatchId = match.id
-                    val currentPlayerId = player.id
-                    Thread {
-                        try {
-                            humanMatchClientController.postJson<Map<String, Any>>(
-                                "/api/human-match/rematch",
-                                mapOf("oldMatchId" to targetOldMatchId, "playerId" to currentPlayerId, "accept" to false),
-                                Map::class.java
-                            )
-                        } catch (_: Exception) {
-                        }
-                    }.start()
-
-                    dismiss()
-                    navigateHomeAction?.invoke()
-                }
-            }
-        }
+        val action = v?.getTag(R.id.btnYesRematch) as? (() -> Unit)
+        action?.invoke()
     }
 }

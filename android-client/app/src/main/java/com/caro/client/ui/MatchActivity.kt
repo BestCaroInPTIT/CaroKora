@@ -67,18 +67,6 @@ class MatchActivity : AppCompatActivity(), View.OnClickListener {
     private var currentMove: Move? = null
     private var listMove: ArrayList<Move> = ArrayList()
 
-    @Volatile
-    private var isSubmittingMove: Boolean = false
-    @Volatile
-    private var isReportingTimeout: Boolean = false
-    @Volatile
-    private var turnDeadlineEpochMs: Long = 0L
-    private var hasShownResultDialog: Boolean = false
-    private var resultDialog: MatchResultDialog? = null
-
-    private var applyMatchUpdate: ((Match) -> Unit)? = null
-    private var promptStopAction: (() -> Unit)? = null
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.match)
@@ -107,6 +95,12 @@ class MatchActivity : AppCompatActivity(), View.OnClickListener {
         lwMoveHistory = findViewById(R.id.lwMoveHistory)
         btnStopPlaying = findViewById(R.id.btnStopPlaying)
         btnStopPlaying.setOnClickListener(this)
+
+        var isSubmittingMove = false
+        var isReportingTimeout = false
+        var turnDeadlineMs = System.currentTimeMillis() + 15_000L
+        var hasShownResultDialog = false
+        var resultDialog: MatchResultDialog? = null
 
         val challengeClientController = ChallengeClientController()
         val humanMatchClientController = HumanMatchClientController()
@@ -224,7 +218,6 @@ class MatchActivity : AppCompatActivity(), View.OnClickListener {
             }
         }
 
-        // Phong to / thu nho 2 ngon tay va keo ban co + cham 1 ngon danh co (goi truc tiep onClick)
         var boardScale = 1.0f
         var boardTransX = 0f
         var boardTransY = 0f
@@ -380,13 +373,12 @@ class MatchActivity : AppCompatActivity(), View.OnClickListener {
         lwMoveHistory.adapter = moveHistoryAdapter
 
         val matchStartEpochMs = System.currentTimeMillis()
-        turnDeadlineEpochMs = System.currentTimeMillis() + 15_000L
         var lastObservedMoveCount = -1
         var lastObservedTurn = ""
 
         val resetTurnTimer = {
             val limitSec = if (match.turnTimeLimit > 0) match.turnTimeLimit else 15
-            turnDeadlineEpochMs = System.currentTimeMillis() + limitSec * 1000L
+            turnDeadlineMs = System.currentTimeMillis() + limitSec * 1000L
             lblTurnTimer.text = String.format(Locale.US, "%02d:%02d", limitSec / 60, limitSec % 60)
         }
 
@@ -462,7 +454,8 @@ class MatchActivity : AppCompatActivity(), View.OnClickListener {
             }
         }
 
-        val applyUpdate: (Match) -> Unit = { updated ->
+        lateinit var applyUpdate: (Match) -> Unit
+        applyUpdate = { updated ->
             val prevCount = lastObservedMoveCount
             val prevTurn = lastObservedTurn
 
@@ -497,7 +490,6 @@ class MatchActivity : AppCompatActivity(), View.OnClickListener {
                 }.start()
             }
         }
-        applyMatchUpdate = applyUpdate
 
         val navigateHome = {
             val intent = Intent(this, PlayerHomeActivity::class.java).apply {
@@ -544,12 +536,60 @@ class MatchActivity : AppCompatActivity(), View.OnClickListener {
                 )
             }
         }
-        promptStopAction = promptStop
+        btnStopPlaying.setTag(R.id.btnStopPlaying, promptStop)
+
+        val onCellClick = { rowIdx: Int, colIdx: Int ->
+            if (!isSubmittingMove && !hasShownResultDialog &&
+                match.status.equals("PLAYING", ignoreCase = true) &&
+                turnDeadlineMs > System.currentTimeMillis()
+            ) {
+                val me = myParticipant ?: match.matchParticipant.firstOrNull { it.player?.id == player.id }
+                if (me != null && me.side.equals(match.currentTurn, ignoreCase = true) &&
+                    match.gameBoard.getCell(rowIdx, colIdx) == '.'
+                ) {
+                    val newMove = Move(
+                        row = GameBoard.indexToRow(rowIdx),
+                        column = colIdx + 1,
+                        moveOrder = listMove.size + 1,
+                        matchParticipant = me,
+                        matchId = match.id
+                    )
+                    currentMove = newMove
+                    isSubmittingMove = true
+
+                    Thread {
+                        var updatedMatch: Match? = null
+                        try {
+                            if (match.mode.equals("CHALLENGE", ignoreCase = true)) {
+                                val ok = challengeClientController.makeMove(newMove)
+                                if (ok) {
+                                    val latestMoves = challengeClientController.getMoveHistory(match.id)
+                                    updatedMatch = challengeClientController.getJson("/api/match/${match.id}", Match::class.java)
+                                    if (updatedMatch != null && latestMoves.isNotEmpty()) {
+                                        updatedMatch.move = latestMoves
+                                    }
+                                }
+                            } else {
+                                updatedMatch = humanMatchClientController.makeMove(newMove)
+                            }
+                        } catch (_: Exception) {
+                        }
+
+                        runOnUiThread {
+                            isSubmittingMove = false
+                            if (!isFinishing && !isDestroyed && updatedMatch != null) {
+                                applyUpdate(updatedMatch)
+                            }
+                        }
+                    }.start()
+                }
+            }
+        }
+        grdBoard.setTag(R.id.grdBoard, onCellClick)
 
         resetTurnTimer()
         renderState()
 
-        // Lay rank cua doi thu
         val oppId = match.matchParticipant.firstOrNull { it.player?.id != player.id }?.player?.id ?: 0
         if (oppId > 0) {
             Thread {
@@ -571,10 +611,9 @@ class MatchActivity : AppCompatActivity(), View.OnClickListener {
         val clockRunnable = object : Runnable {
             override fun run() {
                 if (!hasShownResultDialog && match.status.equals("PLAYING", ignoreCase = true)) {
-                    val remainingSec = ((turnDeadlineEpochMs - System.currentTimeMillis()) / 1000L).coerceAtLeast(0L)
+                    val remainingSec = ((turnDeadlineMs - System.currentTimeMillis()) / 1000L).coerceAtLeast(0L)
                     lblTurnTimer.text = String.format(Locale.US, "%02d:%02d", remainingSec / 60, remainingSec % 60)
 
-                    // Het 15 giay luot di ma chua danh -> xu thua luon tren server cho ca 2 may
                     if (remainingSec <= 0L) {
                         isSubmittingMove = true
                         if (!isReportingTimeout) {
@@ -684,60 +723,14 @@ class MatchActivity : AppCompatActivity(), View.OnClickListener {
     override fun onClick(v: View?) {
         if (v == null) return
         if (v.id == R.id.btnStopPlaying) {
-            promptStopAction?.invoke()
+            val promptStop = btnStopPlaying.getTag(R.id.btnStopPlaying) as? (() -> Unit)
+            promptStop?.invoke()
             return
         }
 
         val coord = v.tag as? IntArray ?: return
         if (coord.size < 2) return
-        val rowIdx = coord[0]
-        val colIdx = coord[1]
-
-        if (isSubmittingMove || hasShownResultDialog) return
-        if (!match.status.equals("PLAYING", ignoreCase = true)) return
-        if (turnDeadlineEpochMs <= System.currentTimeMillis()) return
-
-        val me = myParticipant ?: match.matchParticipant.firstOrNull { it.player?.id == player.id } ?: return
-        if (!me.side.equals(match.currentTurn, ignoreCase = true)) return
-        if (match.gameBoard.getCell(rowIdx, colIdx) != '.') return
-
-        val newMove = Move(
-            row = GameBoard.indexToRow(rowIdx),
-            column = colIdx + 1,
-            moveOrder = listMove.size + 1,
-            matchParticipant = me,
-            matchId = match.id
-        )
-        currentMove = newMove
-        isSubmittingMove = true
-
-        val challengeClientController = ChallengeClientController()
-        val humanMatchClientController = HumanMatchClientController()
-
-        Thread {
-            var updatedMatch: Match? = null
-            try {
-                if (match.mode.equals("CHALLENGE", ignoreCase = true)) {
-                    val ok = challengeClientController.makeMove(newMove)
-                    if (ok) {
-                        val latestMoves = challengeClientController.getMoveHistory(match.id)
-                        updatedMatch = challengeClientController.getJson("/api/match/${match.id}", Match::class.java)
-                        if (updatedMatch != null && latestMoves.isNotEmpty()) {
-                            updatedMatch.move = latestMoves
-                        }
-                    }
-                } else {
-                    updatedMatch = humanMatchClientController.makeMove(newMove)
-                }
-            } catch (_: Exception) {
-            }
-
-            runOnUiThread {
-                isSubmittingMove = false
-                if (!isFinishing && !isDestroyed && updatedMatch != null) {
-                    applyMatchUpdate?.invoke(updatedMatch)
-                }
-            }
-        }.start()
+        val onCellClick = grdBoard.getTag(R.id.grdBoard) as? ((Int, Int) -> Unit)
+        onCellClick?.invoke(coord[0], coord[1])
     }
 }

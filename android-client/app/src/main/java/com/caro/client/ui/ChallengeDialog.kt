@@ -25,37 +25,23 @@ import java.util.Locale
 
 class ChallengeDialog(
     context: Context,
-    private val player: Player,
-    private val opponent: Player
+    private var player: Player,
+    private var opponent: Player
 ) : Dialog(context), View.OnClickListener {
 
     private var lblTitle: TextView
     private var lblMessage: TextView
     private var lblTimer: TextView
-    private var rowYesNo: LinearLayout
-    private var rowBottomActions: LinearLayout
     private var btnYes: Button
     private var btnNo: Button
     private var btnCancel: Button
     private var btnChallengeAgain: Button
-
     private var match: Match? = null
-    private val isIncomingChallenge: Boolean
-    private val challengeClientController = ChallengeClientController()
-    private val mainHandler = Handler(Looper.getMainLooper())
-    private var countDownTimer: CountDownTimer? = null
-    private var isPolling = false
-    private var isTransitioningToMatch = false
-
-    private var showDeclinedAction: (() -> Unit)? = null
-    private var startWaitingAction: (() -> Unit)? = null
-    private var stopAllAction: (() -> Unit)? = null
-    private var respondIncomingAction: ((Boolean) -> Unit)? = null
 
     init {
         val incoming = ApiClient.consumeIncomingChallenge()
         match = incoming
-        isIncomingChallenge = incoming != null
+        val isIncomingChallenge = incoming != null
 
         requestWindowFeature(Window.FEATURE_NO_TITLE)
         setContentView(R.layout.challenge)
@@ -65,8 +51,8 @@ class ChallengeDialog(
         lblTitle = findViewById(R.id.lblTitle)
         lblMessage = findViewById(R.id.lblMessage)
         lblTimer = findViewById(R.id.lblTimer)
-        rowYesNo = findViewById(R.id.rowYesNo)
-        rowBottomActions = findViewById(R.id.rowBottomActions)
+        val rowYesNo = findViewById<LinearLayout>(R.id.rowYesNo)
+        val rowBottomActions = findViewById<LinearLayout>(R.id.rowBottomActions)
         btnYes = findViewById(R.id.btnYes)
         btnNo = findViewById(R.id.btnNo)
         btnCancel = findViewById(R.id.btnCancel)
@@ -76,6 +62,12 @@ class ChallengeDialog(
         btnNo.setOnClickListener(this)
         btnCancel.setOnClickListener(this)
         btnChallengeAgain.setOnClickListener(this)
+
+        val challengeClientController = ChallengeClientController()
+        val mainHandler = Handler(Looper.getMainLooper())
+        var countDownTimer: CountDownTimer? = null
+        var isPolling = false
+        var isTransitioningToMatch = false
 
         val dm = context.resources.displayMetrics
         fun dp(v: Int): Int = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v.toFloat(), dm).toInt()
@@ -88,7 +80,6 @@ class ChallengeDialog(
             countDownTimer?.cancel()
             countDownTimer = null
         }
-        stopAllAction = stopAll
 
         val launchMatch = { readyMatch: Match ->
             if (!isTransitioningToMatch) {
@@ -120,7 +111,6 @@ class ChallengeDialog(
             btnCancel.layoutParams = lp
             btnCancel.visibility = View.VISIBLE
         }
-        showDeclinedAction = showDeclined
 
         pollRunnable = object : Runnable {
             override fun run() {
@@ -186,9 +176,8 @@ class ChallengeDialog(
                 }.start()
             }
         }
-        respondIncomingAction = respondIncoming
 
-        val startWaiting: () -> Unit = {
+        val startWaiting = {
             stopAll()
             lblTitle.text = "CHALLENGE PLAYER ${opponent.gameID.uppercase(Locale.US)}!"
             lblTitle.setBackgroundColor(ContextCompat.getColor(context, R.color.kora_sky))
@@ -236,9 +225,75 @@ class ChallengeDialog(
             isPolling = true
             mainHandler.postDelayed(pollRunnable, 1000L)
         }
-        startWaitingAction = startWaiting
+
+        val onYesOrAgainClicked = {
+            if (isIncomingChallenge && btnYes.tag == "INCOMING") {
+                respondIncoming(true)
+            } else {
+                btnYes.isEnabled = false
+                btnChallengeAgain.isEnabled = false
+                Thread {
+                    val created = try {
+                        challengeClientController.sendChallenge(player.id, opponent.id)
+                    } catch (_: Exception) {
+                        null
+                    }
+                    mainHandler.post {
+                        btnYes.isEnabled = true
+                        btnChallengeAgain.isEnabled = true
+                        if (!isShowing) return@post
+                        if (created != null) {
+                            match = created
+                            startWaiting()
+                        } else {
+                            dismiss()
+                            ApiClient.showNotice(
+                                context = context,
+                                title = "PLAYER UNAVAILABLE",
+                                message = "Player ${opponent.gameID} is in another match.\n\nTry again next time.",
+                                headerColorRes = R.color.kora_amber,
+                                primaryText = "OK"
+                            )
+                        }
+                    }
+                }.start()
+            }
+        }
+
+        val onNoClicked = {
+            if (isIncomingChallenge) {
+                respondIncoming(false)
+            } else {
+                dismiss()
+            }
+        }
+
+        val onCancelClicked = {
+            val activeId = match?.id ?: 0
+            val currentStatus = match?.status ?: ""
+            stopAll()
+            if (activeId > 0 && currentStatus.equals("PENDING", ignoreCase = true)) {
+                Thread {
+                    try {
+                        challengeClientController.postJson<Map<String, Any>>(
+                            "/api/challenge/cancel",
+                            mapOf("matchId" to activeId, "accept" to false),
+                            Map::class.java
+                        )
+                    } catch (_: Exception) {
+                    }
+                }.start()
+            }
+            dismiss()
+        }
+
+        btnYes.setTag(R.id.btnYes, onYesOrAgainClicked)
+        btnChallengeAgain.setTag(R.id.btnYes, onYesOrAgainClicked)
+        btnNo.setTag(R.id.btnYes, onNoClicked)
+        btnCancel.setTag(R.id.btnYes, onCancelClicked)
 
         if (isIncomingChallenge) {
+            btnYes.tag = "INCOMING"
             lblTitle.text = "PLAYER ${opponent.gameID.uppercase(Locale.US)} IS CHALLENGING YOU!"
             lblTitle.setBackgroundColor(ContextCompat.getColor(context, R.color.kora_amber))
             lblMessage.visibility = View.VISIBLE
@@ -285,65 +340,7 @@ class ChallengeDialog(
     }
 
     override fun onClick(v: View?) {
-        when (v?.id) {
-            R.id.btnYes, R.id.btnChallengeAgain -> {
-                if (isIncomingChallenge && v.id == R.id.btnYes) {
-                    respondIncomingAction?.invoke(true)
-                } else {
-                    btnYes.isEnabled = false
-                    btnChallengeAgain.isEnabled = false
-                    Thread {
-                        val created = try {
-                            challengeClientController.sendChallenge(player.id, opponent.id)
-                        } catch (_: Exception) {
-                            null
-                        }
-                        mainHandler.post {
-                            btnYes.isEnabled = true
-                            btnChallengeAgain.isEnabled = true
-                            if (!isShowing) return@post
-                            if (created != null) {
-                                match = created
-                                startWaitingAction?.invoke()
-                            } else {
-                                dismiss()
-                                ApiClient.showNotice(
-                                    context = context,
-                                    title = "PLAYER UNAVAILABLE",
-                                    message = "Player ${opponent.gameID} is in another match.\n\nTry again next time.",
-                                    headerColorRes = R.color.kora_amber,
-                                    primaryText = "OK"
-                                )
-                            }
-                        }
-                    }.start()
-                }
-            }
-            R.id.btnNo -> {
-                if (isIncomingChallenge) {
-                    respondIncomingAction?.invoke(false)
-                } else {
-                    dismiss()
-                }
-            }
-            R.id.btnCancel -> {
-                val activeId = match?.id ?: 0
-                val currentStatus = match?.status ?: ""
-                stopAllAction?.invoke()
-                if (activeId > 0 && currentStatus.equals("PENDING", ignoreCase = true)) {
-                    Thread {
-                        try {
-                            challengeClientController.postJson<Map<String, Any>>(
-                                "/api/challenge/cancel",
-                                mapOf("matchId" to activeId, "accept" to false),
-                                Map::class.java
-                            )
-                        } catch (_: Exception) {
-                        }
-                    }.start()
-                }
-                dismiss()
-            }
-        }
+        val action = v?.getTag(R.id.btnYes) as? (() -> Unit)
+        action?.invoke()
     }
 }

@@ -23,23 +23,13 @@ import java.util.Locale
 
 class FindOpponentDialog(
     context: Context,
-    private val player: Player
+    private var player: Player
 ) : Dialog(context), View.OnClickListener {
 
     private var lblTitle: TextView
     private var lblMessage: TextView
     private var lblTimer: TextView
-    private var btnContinueMatchmaking: Button
     private var btnCancel: Button
-
-    private val humanMatchClientController = HumanMatchClientController()
-    private val mainHandler = Handler(Looper.getMainLooper())
-    private var countDownTimer: CountDownTimer? = null
-    private var isSearching = false
-    private var isTransitioning = false
-
-    private var startCycleAction: (() -> Unit)? = null
-    private var stopCycleAction: (() -> Unit)? = null
 
     init {
         requestWindowFeature(Window.FEATURE_NO_TITLE)
@@ -50,11 +40,17 @@ class FindOpponentDialog(
         lblTitle = findViewById(R.id.lblTitle)
         lblMessage = findViewById(R.id.lblMessage)
         lblTimer = findViewById(R.id.lblTimer)
-        btnContinueMatchmaking = findViewById(R.id.btnContinueMatchmaking)
+        val btnContinueMatchmaking = findViewById<Button>(R.id.btnContinueMatchmaking)
         btnCancel = findViewById(R.id.btnCancel)
 
         btnContinueMatchmaking.setOnClickListener(this)
         btnCancel.setOnClickListener(this)
+
+        val humanMatchClientController = HumanMatchClientController()
+        val mainHandler = Handler(Looper.getMainLooper())
+        var countDownTimer: CountDownTimer? = null
+        var isSearching = false
+        var isTransitioning = false
 
         val dm = context.resources.displayMetrics
         fun dp(v: Int): Int = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v.toFloat(), dm).toInt()
@@ -65,7 +61,6 @@ class FindOpponentDialog(
             countDownTimer?.cancel()
             countDownTimer = null
         }
-        stopCycleAction = stopCycle
 
         val pollRunnable = object : Runnable {
             override fun run() {
@@ -94,7 +89,8 @@ class FindOpponentDialog(
             }
         }
 
-        val startCycle: () -> Unit = {
+        lateinit var startCycle: () -> Unit
+        startCycle = {
             stopCycle()
             isSearching = true
 
@@ -147,7 +143,28 @@ class FindOpponentDialog(
 
             mainHandler.post(pollRunnable)
         }
-        startCycleAction = startCycle
+
+        val onContinueClicked = {
+            startCycle()
+        }
+
+        val onCancelClicked = {
+            stopCycle()
+            Thread {
+                try {
+                    humanMatchClientController.postJson<Map<String, Any>>(
+                        "/api/human-match/cancel-find",
+                        mapOf("playerId" to player.id),
+                        Map::class.java
+                    )
+                } catch (_: Exception) {
+                }
+            }.start()
+            dismiss()
+        }
+
+        btnContinueMatchmaking.setTag(R.id.btnCancel, onContinueClicked)
+        btnCancel.setTag(R.id.btnCancel, onCancelClicked)
 
         startCycle()
 
@@ -162,22 +179,7 @@ class FindOpponentDialog(
     }
 
     override fun onClick(v: View?) {
-        when (v?.id) {
-            R.id.btnContinueMatchmaking -> startCycleAction?.invoke()
-            R.id.btnCancel -> {
-                stopCycleAction?.invoke()
-                Thread {
-                    try {
-                        humanMatchClientController.postJson<Map<String, Any>>(
-                            "/api/human-match/cancel-find",
-                            mapOf("playerId" to player.id),
-                            Map::class.java
-                        )
-                    } catch (_: Exception) {
-                    }
-                }.start()
-                dismiss()
-            }
-        }
+        val action = v?.getTag(R.id.btnCancel) as? (() -> Unit)
+        action?.invoke()
     }
 }

@@ -10,6 +10,7 @@ import android.view.ViewGroup
 import android.widget.AdapterView
 import android.widget.BaseAdapter
 import android.widget.Button
+import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ListView
 import android.widget.TextView
@@ -29,14 +30,12 @@ class OnlinePlayersActivity : AppCompatActivity(), View.OnClickListener, Adapter
 
     private lateinit var lblTitle: TextView
     private lateinit var lblTotalOnline: TextView
+    private var txtSearch: EditText? = null
     private lateinit var lwOnlinePlayers: ListView
     private lateinit var btnBack: Button
 
     private lateinit var player: Player
     private var listOnline: ArrayList<PlayerStatistic> = ArrayList()
-    private var adapter: BaseAdapter? = null
-    private var activeChallengeDialog: ChallengeDialog? = null
-    private var lastShownIncomingMatchId: Int = -1
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -64,49 +63,37 @@ class OnlinePlayersActivity : AppCompatActivity(), View.OnClickListener, Adapter
             override fun getView(position: Int, convertView: View?, parent: ViewGroup?): View {
                 val rowView = convertView ?: LayoutInflater.from(this@OnlinePlayersActivity)
                     .inflate(R.layout.item_online_player, parent, false)
-
                 val item = getItem(position)
+
+                rowView.findViewById<TextView>(R.id.lblIndex).text = (position + 1).toString()
+                rowView.findViewById<TextView>(R.id.lblItemGameID).text = item.gameID
+
+                val pts = item.totalScore
+                val ptsStr = if (pts % 1.0 == 0.0) pts.toLong().toString() else String.format(Locale.US, "%.1f", pts)
+                val rankStr = if (item.rank > 0) "#${item.rank}" else "#-"
+                rowView.findViewById<TextView>(R.id.lblItemStats).text = "POINTS $ptsStr  ·  RANK $rankStr"
+
+                val isAvail = item.onlineStatus.equals("AVAILABLE", ignoreCase = true)
                 val cardPlayerBox = rowView.findViewById<LinearLayout>(R.id.cardPlayerBox)
-                val lblIndex = rowView.findViewById<TextView>(R.id.lblIndex)
-                val lblGameID = rowView.findViewById<TextView>(R.id.lblItemGameID)
-                val lblStats = rowView.findViewById<TextView>(R.id.lblItemStats)
                 val lblStatus = rowView.findViewById<TextView>(R.id.lblItemStatus)
                 val btnViewProfile = rowView.findViewById<Button>(R.id.btnViewProfile)
 
-                lblIndex.text = "${position + 1}"
-                lblGameID.text = item.gameID
-
-                val rankText = if (item.rank > 0) "RANK #${item.rank}" else "RANK #-"
-                val ptsStr = if (item.totalScore % 1.0 == 0.0) {
-                    item.totalScore.toLong().toString()
-                } else {
-                    String.format(Locale.US, "%.1f", item.totalScore)
-                }
-                lblStats.text = "POINTS $ptsStr  ·  $rankText"
-
-                val isAvailable = item.onlineStatus.equals("AVAILABLE", ignoreCase = true)
-                if (isAvailable) {
+                if (isAvail) {
+                    cardPlayerBox.alpha = 1.0f
+                    cardPlayerBox.isClickable = true
+                    cardPlayerBox.setOnClickListener {
+                        onItemClick(lwOnlinePlayers, rowView, position, getItemId(position))
+                    }
                     lblStatus.text = "AVAILABLE"
                     lblStatus.setBackgroundResource(R.drawable.bg_status_available)
                     lblStatus.setTextColor(ContextCompat.getColor(this@OnlinePlayersActivity, R.color.kora_ink))
-                    cardPlayerBox.isEnabled = true
-                    cardPlayerBox.isClickable = true
-                    cardPlayerBox.setOnClickListener {
-                        if (item.id != player.id) {
-                            activeChallengeDialog?.dismiss()
-                            ApiClient.pendingIncomingChallenge = null
-                            activeChallengeDialog = ChallengeDialog(this@OnlinePlayersActivity, player, item).also {
-                                it.show()
-                            }
-                        }
-                    }
                 } else {
+                    cardPlayerBox.alpha = 0.55f
+                    cardPlayerBox.isClickable = false
+                    cardPlayerBox.setOnClickListener(null)
                     lblStatus.text = "IN MATCH"
                     lblStatus.setBackgroundResource(R.drawable.bg_status_inmatch)
                     lblStatus.setTextColor(ContextCompat.getColor(this@OnlinePlayersActivity, R.color.kora_ink))
-                    cardPlayerBox.setOnClickListener(null)
-                    cardPlayerBox.isClickable = false
-                    cardPlayerBox.isEnabled = false
                 }
 
                 btnViewProfile.setOnClickListener {
@@ -120,7 +107,6 @@ class OnlinePlayersActivity : AppCompatActivity(), View.OnClickListener, Adapter
                 return rowView
             }
         }
-        adapter = onlineAdapter
         lwOnlinePlayers.adapter = onlineAdapter
         lwOnlinePlayers.onItemClickListener = this
 
@@ -129,7 +115,7 @@ class OnlinePlayersActivity : AppCompatActivity(), View.OnClickListener, Adapter
             override fun run() {
                 if (!lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) return
                 onResume()
-                mainHandler.postDelayed(this, 2500L)
+                mainHandler.postDelayed(this, 3000L)
             }
         }
 
@@ -137,14 +123,14 @@ class OnlinePlayersActivity : AppCompatActivity(), View.OnClickListener, Adapter
             when (event) {
                 Lifecycle.Event.ON_RESUME -> {
                     mainHandler.removeCallbacks(refreshRunnable)
-                    mainHandler.postDelayed(refreshRunnable, 2500L)
+                    mainHandler.post(refreshRunnable)
                 }
                 Lifecycle.Event.ON_PAUSE -> {
                     mainHandler.removeCallbacks(refreshRunnable)
                 }
                 Lifecycle.Event.ON_DESTROY -> {
                     mainHandler.removeCallbacks(refreshRunnable)
-                    activeChallengeDialog?.dismiss()
+                    (lwOnlinePlayers.getTag(R.id.lwOnlinePlayers) as? ChallengeDialog)?.dismiss()
                 }
                 else -> {}
             }
@@ -153,9 +139,10 @@ class OnlinePlayersActivity : AppCompatActivity(), View.OnClickListener, Adapter
 
     override fun onResume() {
         super.onResume()
-        if (!::player.isInitialized) return
-        val myId = player.id
         val challengeClientController = ChallengeClientController()
+        val myId = player.id
+        if (myId <= 0) return
+
         data class HeartbeatResp(val alive: Boolean = false, val incomingChallenge: Match? = null)
 
         Thread {
@@ -179,23 +166,25 @@ class OnlinePlayersActivity : AppCompatActivity(), View.OnClickListener, Adapter
                 if (isFinishing || isDestroyed) return@runOnUiThread
                 listOnline = visiblePlayers
                 lblTotalOnline.text = "TOTAL ONLINE PLAYERS: ${listOnline.size}"
-                adapter?.notifyDataSetChanged()
+                (lwOnlinePlayers.adapter as? BaseAdapter)?.notifyDataSetChanged()
 
                 val incoming = heartbeat?.incomingChallenge
+                val activeDialog = lwOnlinePlayers.getTag(R.id.lwOnlinePlayers) as? ChallengeDialog
+                val lastId = (lwOnlinePlayers.getTag(R.id.lblTotalOnline) as? Int) ?: -1
                 if (incoming != null &&
                     lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) &&
-                    activeChallengeDialog?.isShowing != true &&
-                    incoming.id != lastShownIncomingMatchId
+                    activeDialog?.isShowing != true &&
+                    incoming.id != lastId
                 ) {
                     val challenger = incoming.matchParticipant
                         .firstOrNull { it.player?.id != null && it.player?.id != player.id }
                         ?.player
                     if (challenger != null) {
-                        lastShownIncomingMatchId = incoming.id
+                        lwOnlinePlayers.setTag(R.id.lblTotalOnline, incoming.id)
                         ApiClient.pendingIncomingChallenge = incoming
-                        activeChallengeDialog = ChallengeDialog(this, player, challenger).also {
-                            it.show()
-                        }
+                        val dlg = ChallengeDialog(this, player, challenger)
+                        lwOnlinePlayers.setTag(R.id.lwOnlinePlayers, dlg)
+                        dlg.show()
                     }
                 }
             }
@@ -212,9 +201,11 @@ class OnlinePlayersActivity : AppCompatActivity(), View.OnClickListener, Adapter
         if (position !in listOnline.indices) return
         val selected = listOnline[position]
         if (selected.id != player.id && selected.onlineStatus.equals("AVAILABLE", ignoreCase = true)) {
-            activeChallengeDialog?.dismiss()
+            (lwOnlinePlayers.getTag(R.id.lwOnlinePlayers) as? ChallengeDialog)?.dismiss()
             ApiClient.pendingIncomingChallenge = null
-            activeChallengeDialog = ChallengeDialog(this, player, selected).also { it.show() }
+            val dlg = ChallengeDialog(this, player, selected)
+            lwOnlinePlayers.setTag(R.id.lwOnlinePlayers, dlg)
+            dlg.show()
         }
     }
 }
