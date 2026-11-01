@@ -51,21 +51,17 @@ class MatchActivity : AppCompatActivity(), View.OnClickListener {
     private lateinit var lblOpponentName: TextView
     private lateinit var lblOpponentRank: TextView
     private lateinit var lblMatchId: TextView
+    private lateinit var grdBoard: GridLayout
     private lateinit var lblPlayedTime: TextView
     private lateinit var lblTurnTimer: TextView
     private lateinit var lblCurrentTurn: TextView
     private lateinit var imgCurrentTurnAvatar: ImageView
     private lateinit var lblPlayerMoves: TextView
     private lateinit var lblOpponentMoves: TextView
-    private lateinit var grdBoard: GridLayout
     private lateinit var lwMoveHistory: ListView
     private lateinit var btnStopPlaying: Button
-
-    private lateinit var player: Player
     private lateinit var match: Match
-    private var myParticipant: MatchParticipant? = null
-    private var currentMove: Move? = null
-    private var listMove: ArrayList<Move> = ArrayList()
+    private lateinit var player: Player
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -80,7 +76,10 @@ class MatchActivity : AppCompatActivity(), View.OnClickListener {
         }
         player = resolvedPlayer
         match = resolvedMatch
-        listMove = ArrayList(match.move)
+
+        var myParticipant: MatchParticipant? = null
+        var currentMove: Move? = null
+        var listMove: ArrayList<Move> = ArrayList(match.move)
 
         lblOpponentName = findViewById(R.id.lblOpponentName)
         lblOpponentRank = findViewById(R.id.lblOpponentRank)
