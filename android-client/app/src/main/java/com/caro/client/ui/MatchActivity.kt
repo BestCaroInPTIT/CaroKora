@@ -71,6 +71,8 @@ class MatchActivity : AppCompatActivity(), View.OnClickListener {
     private var isSubmittingMove: Boolean = false
     @Volatile
     private var isReportingTimeout: Boolean = false
+    @Volatile
+    private var turnDeadlineEpochMs: Long = 0L
     private var hasShownResultDialog: Boolean = false
     private var resultDialog: MatchResultDialog? = null
 
@@ -378,7 +380,7 @@ class MatchActivity : AppCompatActivity(), View.OnClickListener {
         lwMoveHistory.adapter = moveHistoryAdapter
 
         val matchStartEpochMs = System.currentTimeMillis()
-        var turnDeadlineEpochMs = System.currentTimeMillis() + 15_000L
+        turnDeadlineEpochMs = System.currentTimeMillis() + 15_000L
         var lastObservedMoveCount = -1
         var lastObservedTurn = ""
 
@@ -569,35 +571,59 @@ class MatchActivity : AppCompatActivity(), View.OnClickListener {
         val clockRunnable = object : Runnable {
             override fun run() {
                 if (!hasShownResultDialog && match.status.equals("PLAYING", ignoreCase = true)) {
-                    val elapsedSec = ((System.currentTimeMillis() - matchStartEpochMs) / 1000L).coerceAtLeast(0L)
-                    lblPlayedTime.text = String.format(Locale.US, "%02d:%02d", elapsedSec / 60, elapsedSec % 60)
-
                     val remainingSec = ((turnDeadlineEpochMs - System.currentTimeMillis()) / 1000L).coerceAtLeast(0L)
                     lblTurnTimer.text = String.format(Locale.US, "%02d:%02d", remainingSec / 60, remainingSec % 60)
 
                     // Het 15 giay luot di ma chua danh -> xu thua luon tren server cho ca 2 may
-                    if (remainingSec == 0L && !isSubmittingMove && !isReportingTimeout) {
-                        isReportingTimeout = true
-                        val targetMatchId = match.id
-                        val currentPlayerId = player.id
-                        Thread {
-                            val timedOutMatch = try {
-                                humanMatchClientController.postJson<Match>(
-                                    "/api/human-match/timeout",
-                                    mapOf("matchId" to targetMatchId, "playerId" to currentPlayerId),
-                                    Match::class.java
-                                )
-                            } catch (_: Exception) {
-                                null
+                    if (remainingSec <= 0L) {
+                        isSubmittingMove = true
+                        if (!isReportingTimeout) {
+                            isReportingTimeout = true
+                            val targetMatchId = match.id
+                            val currentPlayerId = player.id
+                            val timeoutEndpoint = if (match.mode.equals("CHALLENGE", ignoreCase = true)) {
+                                "/api/challenge/timeout"
+                            } else {
+                                "/api/human-match/timeout"
                             }
-                            runOnUiThread {
-                                isReportingTimeout = false
-                                if (!isFinishing && !isDestroyed && timedOutMatch != null) {
-                                    applyUpdate(timedOutMatch)
+                            Thread {
+                                val timedOutMatch = try {
+                                    humanMatchClientController.postJson<Match>(
+                                        timeoutEndpoint,
+                                        mapOf("matchId" to targetMatchId, "playerId" to currentPlayerId),
+                                        Match::class.java
+                                    )
+                                } catch (_: Exception) {
+                                    null
                                 }
-                            }
-                        }.start()
+                                runOnUiThread {
+                                    isReportingTimeout = false
+                                    if (!isFinishing && !isDestroyed) {
+                                        if (timedOutMatch != null) {
+                                            applyUpdate(timedOutMatch)
+                                        } else {
+                                            for (mp in match.matchParticipant) {
+                                                if (mp.side.equals(match.currentTurn, ignoreCase = true)) {
+                                                    mp.setOutcome("LOSS")
+                                                    mp.setScore(0.0)
+                                                } else {
+                                                    mp.setOutcome("WIN")
+                                                    mp.setScore(1.0)
+                                                }
+                                            }
+                                            match.status = "FINISHED"
+                                            applyUpdate(match)
+                                        }
+                                    }
+                                }
+                            }.start()
+                        }
+                        return
                     }
+
+                    val elapsedSec = ((System.currentTimeMillis() - matchStartEpochMs) / 1000L).coerceAtLeast(0L)
+                    lblPlayedTime.text = String.format(Locale.US, "%02d:%02d", elapsedSec / 60, elapsedSec % 60)
+
                     mainHandler.postDelayed(this, 1000L)
                 }
             }
@@ -669,6 +695,7 @@ class MatchActivity : AppCompatActivity(), View.OnClickListener {
 
         if (isSubmittingMove || hasShownResultDialog) return
         if (!match.status.equals("PLAYING", ignoreCase = true)) return
+        if (turnDeadlineEpochMs <= System.currentTimeMillis()) return
 
         val me = myParticipant ?: match.matchParticipant.firstOrNull { it.player?.id == player.id } ?: return
         if (!me.side.equals(match.currentTurn, ignoreCase = true)) return

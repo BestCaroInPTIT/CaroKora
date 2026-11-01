@@ -61,11 +61,10 @@
                 android:maxLines="1"
                 android:minWidth="0dp"
                 android:minHeight="0dp"
-                android:paddingHorizontal="6dp"
-                android:singleLine="true"
+                android:paddingHorizontal="4dp"
                 android:text="OK"
                 android:textColor="@color/kora_ink"
-                android:textSize="12sp"
+                android:textSize="11sp"
                 android:textStyle="bold"
                 app:backgroundTint="@null" />
 
@@ -80,11 +79,10 @@
                 android:maxLines="1"
                 android:minWidth="0dp"
                 android:minHeight="0dp"
-                android:paddingHorizontal="6dp"
-                android:singleLine="true"
+                android:paddingHorizontal="4dp"
                 android:text="CANCEL"
                 android:textColor="@color/kora_ink"
-                android:textSize="12sp"
+                android:textSize="11sp"
                 android:textStyle="bold"
                 android:visibility="gone"
                 app:backgroundTint="@null" />

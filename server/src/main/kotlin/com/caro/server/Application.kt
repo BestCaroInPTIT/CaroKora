@@ -324,11 +324,27 @@ fun Application.module() {
                 }
             }
 
+            post("/challenge/timeout") {
+                val req = call.receive<StopMatchRequest>()
+                val updatedMatch = if (req.matchId > 0) {
+                    synchronized(DAO.lockForMatch(req.matchId)) {
+                        val m = DAO.checkAndEnforceTurnTimeout(req.matchId, force = true)
+                        enrichEndedMatchStats(m)
+                        m
+                    }
+                } else null
+                if (updatedMatch != null) {
+                    call.respond(HttpStatusCode.OK, updatedMatch)
+                } else {
+                    call.respond(HttpStatusCode.NotFound, mapOf("error" to "Match not found"))
+                }
+            }
+
             post("/human-match/timeout") {
                 val req = call.receive<StopMatchRequest>()
                 val updatedMatch = if (req.matchId > 0) {
                     synchronized(DAO.lockForMatch(req.matchId)) {
-                        val m = DAO.checkAndEnforceTurnTimeout(req.matchId, graceSeconds = -0.5)
+                        val m = DAO.checkAndEnforceTurnTimeout(req.matchId, force = true)
                         enrichEndedMatchStats(m)
                         m
                     }

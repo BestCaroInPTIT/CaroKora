@@ -276,7 +276,7 @@ open class DAO {
         /**
          * Xu thua ngay lap tuc khi het 15 giay luot di ma nguoi den luot chua danh.
          */
-        fun checkAndEnforceTurnTimeout(matchId: Int, graceSeconds: Double = 0.0): Match? = getConnection().use { connection ->
+        fun checkAndEnforceTurnTimeout(matchId: Int, graceSeconds: Double = 0.0, force: Boolean = false): Match? = getConnection().use { connection ->
             val timing = connection.prepareStatement(
                 """
                 SELECT
@@ -309,7 +309,10 @@ open class DAO {
             val (elapsedSec, turnLimit) = timing.third
 
             val currentMatch = loadMatchInternal(connection, matchId) ?: return@use null
-            if (status != "PLAYING" || elapsedSec < (turnLimit + graceSeconds)) {
+            if (status != "PLAYING") {
+                return@use currentMatch
+            }
+            if (!force && elapsedSec < (turnLimit + graceSeconds)) {
                 return@use currentMatch
             }
 

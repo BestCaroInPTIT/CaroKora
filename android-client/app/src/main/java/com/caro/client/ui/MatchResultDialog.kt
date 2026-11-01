@@ -139,25 +139,43 @@ class MatchResultDialog(
 
         val showRefusedNotice = {
             mainHandler.removeCallbacksAndMessages(null)
-            val hostContext = context
             dismiss()
-            ApiClient.showNotice(
-                context = hostContext,
-                title = "REMATCH UNAVAILABLE",
-                message = "Your opponent refused to rematch.",
-                headerColorRes = R.color.kora_coral,
-                primaryText = "OK",
-                cancelable = false,
-                onPrimary = {
-                    val hostActivity = hostContext as? Activity
-                    val intent = Intent(hostContext, PlayerHomeActivity::class.java).apply {
-                        flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
-                        putExtra("extra_player", player)
-                    }
-                    hostContext.startActivity(intent)
-                    hostActivity?.finish()
+            navigateHome()
+        }
+
+        var countdownSec = 10
+        val countdownRunnable = object : Runnable {
+            override fun run() {
+                if (!isShowing || !isMonitoringRematch || hasHandledOutcome) return
+                countdownSec--
+                if (countdownSec <= 0) {
+                    hasHandledOutcome = true
+                    isMonitoringRematch = false
+                    mainHandler.removeCallbacksAndMessages(null)
+                    val targetOldMatchId = match.id
+                    val currentPlayerId = player.id
+                    Thread {
+                        try {
+                            humanMatchClientController.postJson<Map<String, Any>>(
+                                "/api/human-match/rematch",
+                                mapOf("oldMatchId" to targetOldMatchId, "playerId" to currentPlayerId, "accept" to false),
+                                Map::class.java
+                            )
+                        } catch (_: Exception) {
+                        }
+                    }.start()
+                    dismiss()
+                    navigateHome()
+                    return
                 }
-            )
+
+                if (hasAcceptedRematch) {
+                    lblRematchPrompt.text = "Waiting for opponent... (${countdownSec}s)"
+                } else {
+                    lblRematchPrompt.text = "Continue playing? (${countdownSec}s)"
+                }
+                mainHandler.postDelayed(this, 1000L)
+            }
         }
 
         val rematchPollRunnable = object : Runnable {
@@ -238,7 +256,9 @@ class MatchResultDialog(
             btnYesRematch.layoutParams = lp
         } else {
             isMonitoringRematch = true
+            lblRematchPrompt.text = "Continue playing? (10s)"
             mainHandler.postDelayed(rematchPollRunnable, 1000L)
+            mainHandler.postDelayed(countdownRunnable, 1000L)
         }
 
         setOnShowListener {
