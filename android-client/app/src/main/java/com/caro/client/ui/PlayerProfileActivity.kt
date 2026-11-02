@@ -1,5 +1,6 @@
 package com.caro.client.ui
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.widget.Button
@@ -142,7 +143,12 @@ class PlayerProfileActivity : AppCompatActivity(), View.OnClickListener {
                 // Ngoai pham vi chuc nang ca nhan: bam vao khong thuc hien gi
             }
             R.id.btnViewMatchHistory -> {
-                // Ngoai pham vi chuc nang ca nhan: bam vao khong thuc hien gi
+                val activePlayer = ps ?: ApiClient.getPlayer(this)
+                if (activePlayer != null) {
+                    val intent = Intent(this, MatchHistoryActivity::class.java)
+                    intent.putExtra("extra_player", activePlayer)
+                    startActivity(intent)
+                }
             }
             R.id.btnBack -> finish()
         }

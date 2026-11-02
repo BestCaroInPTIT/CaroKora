@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/kora_bg"
+    android:orientation="vertical"
+    android:padding="18dp">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingVertical="8dp">
+
+        <ImageView
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:contentDescription="Kora Mark"
+            android:src="@drawable/ic_kora_mark" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:fontFamily="monospace"
+            android:letterSpacing="0.06"
+            android:text="MATCH HISTORY"
+            android:textColor="@color/kora_ink"
+            android:textSize="17sp"
+            android:textStyle="bold" />
+    </RelativeLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1.5dp"
+        android:layout_marginBottom="20dp"
+        android:background="@color/kora_ink" />
+
+    <TextView
+        android:id="@+id/lblTotalMatches"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="10dp"
+        android:fontFamily="monospace"
+        android:text="TOTAL MATCHES: 0"
+        android:textColor="@color/kora_ink"
+        android:textSize="12.5sp"
+        android:textStyle="bold" />
+
+    <ListView
+        android:id="@+id/lwMatchHistory"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:divider="@android:color/transparent"
+        android:dividerHeight="10dp"
+        android:listSelector="@android:color/transparent" />
+
+    <Button
+        android:id="@+id/btnBack"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/bg_btn_neutral"
+        android:fontFamily="monospace"
+        android:text="Back"
+        android:textAllCaps="false"
+        android:textColor="@color/kora_ink"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        app:backgroundTint="@null" />
+</LinearLayout>

@@ -4,6 +4,35 @@ import com.caro.server.entity.Match
 
 class MatchDAO : DAO() {
 
+    fun getMatchHistory(playerId: Int): ArrayList<Match> = withConnection { connection ->
+        val matchIds = connection.prepareStatement(
+            """
+            SELECT m.id
+            FROM Match m
+            WHERE EXISTS (
+                SELECT 1
+                FROM MatchParticipant mp
+                WHERE mp.Matchid = m.id AND mp.Playerid = ?
+            )
+              AND m.status IN ('FINISHED', 'STOPPED')
+            ORDER BY COALESCE(m.endedAt, m.startedAt) DESC, m.id DESC
+            """.trimIndent()
+        ).use { ps ->
+            ps.setInt(1, playerId)
+            ps.executeQuery().use { rs ->
+                val ids = ArrayList<Int>()
+                while (rs.next()) ids.add(rs.getInt("id"))
+                ids
+            }
+        }
+
+        val history = ArrayList<Match>()
+        for (matchId in matchIds) {
+            loadMatchInternal(connection, matchId)?.let { history.add(it) }
+        }
+        history
+    }
+
     fun createChallengeMatch(p1Id: Int, p2Id: Int): Match? = withConnection { connection ->
         val p2Status = connection.prepareStatement("SELECT onlineStatus FROM Player WHERE id = ?").use { ps ->
             ps.setInt(1, p2Id)

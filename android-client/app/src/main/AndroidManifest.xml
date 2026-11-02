@@ -42,6 +42,14 @@
             android:name=".ui.MatchActivity"
             android:exported="false" />
 
+        <activity
+            android:name=".ui.MatchHistoryActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.MatchDetailActivity"
+            android:exported="false" />
+
         <!-- Thanh vien cung nhom (Nguyen Manh Duc) khai bao cac Activity F3, F4, F5 tai day -->
     </application>
 

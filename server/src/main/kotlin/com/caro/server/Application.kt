@@ -2,6 +2,7 @@ package com.caro.server
 
 import com.caro.server.controller.ChallengeServerController
 import com.caro.server.controller.HumanMatchServerController
+import com.caro.server.controller.MatchHistoryServerController
 import com.caro.server.controller.PlayerServerController
 import com.caro.server.dao.DAO
 import com.caro.server.dao.PlayerStatisticDAO
@@ -102,6 +103,7 @@ fun Application.module() {
     val playerController = PlayerServerController()
     val challengeController = ChallengeServerController()
     val humanMatchController = HumanMatchServerController()
+    val matchHistoryController = MatchHistoryServerController()
     val playerStatisticDAO = PlayerStatisticDAO()
     val rematchSessions = ConcurrentHashMap<Int, RematchSession>()
 
@@ -424,6 +426,31 @@ fun Application.module() {
                 } else {
                     call.respond(HttpStatusCode.NotFound, mapOf("error" to "Match not found"))
                 }
+            }
+
+            // ============================================================
+            // CHUC NANG 4: XEM LICH SU DAU CA NHAN (MatchHistoryServerController)
+            // ============================================================
+            get("/match-history/{playerId}") {
+                val playerId = call.parameters["playerId"]?.toIntOrNull() ?: 0
+                call.respond(HttpStatusCode.OK, matchHistoryController.handleGetMatchHistory(playerId))
+            }
+
+            get("/match-history/{playerId}/{matchId}") {
+                val playerId = call.parameters["playerId"]?.toIntOrNull() ?: 0
+                val matchId = call.parameters["matchId"]?.toIntOrNull() ?: 0
+                val match = matchHistoryController.handleGetMatchDetail(matchId, playerId)
+                if (match != null) {
+                    call.respond(HttpStatusCode.OK, match)
+                } else {
+                    call.respond(HttpStatusCode.NotFound, mapOf("error" to "Match history not found"))
+                }
+            }
+
+            get("/match-history/{playerId}/{matchId}/moves") {
+                val playerId = call.parameters["playerId"]?.toIntOrNull() ?: 0
+                val matchId = call.parameters["matchId"]?.toIntOrNull() ?: 0
+                call.respond(HttpStatusCode.OK, matchHistoryController.handleGetMoveHistory(playerId, matchId))
             }
         }
     }
