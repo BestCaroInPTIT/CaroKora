@@ -18,6 +18,8 @@ import android.widget.TextView
 import androidx.core.content.ContextCompat
 import com.caro.client.R
 import com.caro.client.controller.HumanMatchClientController
+import com.caro.client.controller.AIMatchClientController
+import com.caro.client.controller.ApiClient
 import com.caro.client.entity.Match
 import com.caro.client.entity.Player
 import java.util.Locale
@@ -54,8 +56,15 @@ class MatchResultDialog(
         btnNoHome.setOnClickListener(this)
 
         val humanMatchClientController = HumanMatchClientController()
+        val aiMatchClientController = AIMatchClientController()
         val mainHandler = Handler(Looper.getMainLooper())
         val isStoppedMatch = match.status.equals("STOPPED", ignoreCase = true)
+        val isAIMatch = match.mode.equals("AI", ignoreCase = true) ||
+            match.matchParticipant.any { it.participantType.equals("AI", ignoreCase = true) }
+        val aiDifficulty = match.matchParticipant
+            .firstOrNull { it.participantType.equals("AI", ignoreCase = true) }
+            ?.aiDifficulty
+            ?: "beginner"
         var isMonitoringRematch = false
         var hasAcceptedRematch = false
         var hasHandledOutcome = false
@@ -239,6 +248,44 @@ class MatchResultDialog(
             if (isStoppedMatch) {
                 dismiss()
                 navigateHome()
+            } else if (isAIMatch && !hasHandledOutcome) {
+                hasHandledOutcome = true
+                btnYesRematch.isEnabled = false
+                btnYesRematch.text = "CREATING..."
+                lblRematchPrompt.text = "Starting a new AI match..."
+                mainHandler.removeCallbacksAndMessages(null)
+
+                Thread {
+                    val newMatch = try {
+                        aiMatchClientController.createMatch(player.id, aiDifficulty)
+                    } catch (_: Exception) {
+                        null
+                    }
+                    mainHandler.post {
+                        if (newMatch != null) {
+                            isMonitoringRematch = false
+                            dismiss()
+                            val hostActivity = context as? Activity
+                            val intent = Intent(context, MatchActivity::class.java).apply {
+                                putExtra("extra_player", player)
+                                putExtra("extra_match", newMatch)
+                            }
+                            context.startActivity(intent)
+                            hostActivity?.finish()
+                        } else {
+                            hasHandledOutcome = false
+                            btnYesRematch.isEnabled = true
+                            btnYesRematch.text = "YES"
+                            lblRematchPrompt.text = "Continue playing?"
+                            ApiClient.showNotice(
+                                context,
+                                "AI MATCH",
+                                "Could not create the match. Please try again.",
+                                primaryText = "OK"
+                            )
+                        }
+                    }
+                }.start()
             } else if (!hasAcceptedRematch && !hasHandledOutcome) {
                 hasAcceptedRematch = true
                 rematchPollAttempts = 0
@@ -256,18 +303,20 @@ class MatchResultDialog(
                 isMonitoringRematch = false
                 mainHandler.removeCallbacksAndMessages(null)
 
-                val targetOldMatchId = match.id
-                val currentPlayerId = player.id
-                Thread {
-                    try {
-                        humanMatchClientController.postJson<Map<String, Any>>(
-                            "/api/human-match/rematch",
-                            mapOf("oldMatchId" to targetOldMatchId, "playerId" to currentPlayerId, "accept" to false),
-                            Map::class.java
-                        )
-                    } catch (_: Exception) {
-                    }
-                }.start()
+                if (!isAIMatch) {
+                    val targetOldMatchId = match.id
+                    val currentPlayerId = player.id
+                    Thread {
+                        try {
+                            humanMatchClientController.postJson<Map<String, Any>>(
+                                "/api/human-match/rematch",
+                                mapOf("oldMatchId" to targetOldMatchId, "playerId" to currentPlayerId, "accept" to false),
+                                Map::class.java
+                            )
+                        } catch (_: Exception) {
+                        }
+                    }.start()
+                }
 
                 dismiss()
                 navigateHome()
@@ -286,6 +335,9 @@ class MatchResultDialog(
             lp.weight = 0f
             lp.marginEnd = 0
             btnYesRematch.layoutParams = lp
+        } else if (isAIMatch) {
+            isMonitoringRematch = false
+            lblRematchPrompt.text = "Continue playing?"
         } else {
             isMonitoringRematch = true
             lblRematchPrompt.text = "Continue playing? (10s)"
