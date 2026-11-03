@@ -11,6 +11,7 @@ import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.graphics.Rect
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -42,7 +43,6 @@ import com.caro.client.entity.MatchParticipant
 import com.caro.client.entity.Move
 import com.caro.client.entity.Player
 import java.util.Locale
-import kotlin.math.floor
 import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
@@ -328,15 +328,20 @@ class MatchActivity : AppCompatActivity(), View.OnClickListener {
                             hypot((ev.x - downX).toDouble(), (ev.y - downY).toDouble()) <= touchSlop * 1.5 &&
                             cellPx > 0
                         ) {
-                            val pw = grdBoard.width / 2f
-                            val ph = grdBoard.height / 2f
-                            val lx = (ev.x - grdBoard.left - boardTransX - pw) / boardScale + pw
-                            val ly = (ev.y - grdBoard.top - boardTransY - ph) / boardScale + ph
-                            val gCol = floor(lx / cellPx).toInt()
-                            val gRow = floor(ly / cellPx).toInt()
-                            if (gRow in 1..GameBoard.BOARD_DIMENSION && gCol in 1..GameBoard.BOARD_DIMENSION) {
-                                boardCells[gRow - 1][gCol - 1]?.let { onClick(it) }
+                            var hitCell: TextView? = null
+                            val hitRect = Rect()
+                            for (r in 0 until GameBoard.BOARD_DIMENSION) {
+                                for (c in 0 until GameBoard.BOARD_DIMENSION) {
+                                    val cell = boardCells[r][c] ?: continue
+                                    cell.getGlobalVisibleRect(hitRect)
+                                    if (hitRect.contains(ev.rawX.toInt(), ev.rawY.toInt())) {
+                                        hitCell = cell
+                                        break
+                                    }
+                                }
+                                if (hitCell != null) break
                             }
+                            hitCell?.let { onClick(it) }
                         }
                         isPanOrZoom = false
                         activePtrId = MotionEvent.INVALID_POINTER_ID

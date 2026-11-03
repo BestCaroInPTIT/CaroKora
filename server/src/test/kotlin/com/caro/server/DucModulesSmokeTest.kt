@@ -2,12 +2,34 @@ package com.caro.server
 
 import com.caro.server.controller.PlayerServerController
 import com.caro.server.controller.RankingServerController
+import com.caro.server.controller.AIMatchServerController
+import com.caro.server.entity.GameBoard
+import com.caro.server.entity.MatchParticipant
+import com.caro.server.entity.Move
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class DucModulesSmokeTest {
+
+    @Test
+    fun testIntermediateAndExpertBlockOpenThree() {
+        val ai = AIMatchServerController()
+        val pX = MatchParticipant(id = 1, side = "X")
+        val board = GameBoard()
+        board.rebuildFromMoves(arrayListOf(
+            Move(row = "H", column = 6, matchParticipant = pX),
+            Move(row = "H", column = 7, matchParticipant = pX),
+            Move(row = "H", column = 8, matchParticipant = pX)
+        ))
+
+        val intermediateMove = ai.chooseMove(board, "intermediate")
+        val expertMove = ai.chooseMove(board, "expert")
+
+        assertTrue(intermediateMove == (7 to 4) || intermediateMove == (7 to 8))
+        assertTrue(expertMove == (7 to 4) || expertMove == (7 to 8))
+    }
 
     @Test
     fun testRankingListAndPlayerStatistics() {

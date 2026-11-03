@@ -68,7 +68,7 @@ class AIMatchServerController {
         }
     }
 
-    private fun chooseMove(board: GameBoard, difficulty: String): Pair<Int, Int>? {
+    internal fun chooseMove(board: GameBoard, difficulty: String): Pair<Int, Int>? {
         val candidates = candidateCells(board)
         if (candidates.isEmpty()) return null
 
@@ -82,6 +82,9 @@ class AIMatchServerController {
 
     private fun chooseBeginner(board: GameBoard, candidates: List<Pair<Int, Int>>): Pair<Int, Int>? {
         findWinningMove(board, candidates, 'O')?.let { return it }
+        if (Random.nextDouble() < 0.65) {
+            findBestThreatMove(board, candidates, 'X', 250)?.let { return it }
+        }
         val nearCandidates = candidates.filter { hasNeighbor(board, it.first, it.second, 1) }
         val pool = if (nearCandidates.isNotEmpty()) nearCandidates else candidates
         return pool.random(Random.Default)
@@ -90,6 +93,7 @@ class AIMatchServerController {
     private fun chooseIntermediate(board: GameBoard, candidates: List<Pair<Int, Int>>): Pair<Int, Int>? {
         findWinningMove(board, candidates, 'O')?.let { return it }
         findWinningMove(board, candidates, 'X')?.let { return it }
+        findBestThreatMove(board, candidates, 'X', 250)?.let { return it }
         return candidates.maxByOrNull { (r, c) ->
             positionScore(board, r, c, 'O') + positionScore(board, r, c, 'X') / 2
         }
@@ -98,6 +102,7 @@ class AIMatchServerController {
     private fun chooseExpert(board: GameBoard, candidates: List<Pair<Int, Int>>): Pair<Int, Int>? {
         findWinningMove(board, candidates, 'O')?.let { return it }
         findWinningMove(board, candidates, 'X')?.let { return it }
+        findBestThreatMove(board, candidates, 'X', 250)?.let { return it }
 
         val startTime = System.currentTimeMillis()
         val timeoutMs = 1500L
@@ -125,6 +130,68 @@ class AIMatchServerController {
             }
         }
         return bestMove
+    }
+
+    private fun findBestThreatMove(
+        board: GameBoard,
+        candidates: List<Pair<Int, Int>>,
+        symbol: Char,
+        minimumScore: Int
+    ): Pair<Int, Int>? {
+        return candidates.mapNotNull { (r, c) ->
+            val copy = board.boardState.toCharArray()
+            copy[r * GameBoard.BOARD_DIMENSION + c] = symbol
+            val score = threatScore(copy, r, c, symbol)
+            if (score >= minimumScore) r to c to score else null
+        }.maxByOrNull { it.second }?.first
+    }
+
+    private fun threatScore(state: CharArray, row: Int, col: Int, symbol: Char): Int {
+        var score = 0
+        val directions = arrayOf(0 to 1, 1 to 0, 1 to 1, 1 to -1)
+        for ((dr, dc) in directions) {
+            var contiguous = 1
+            var openEnds = 0
+
+            var r = row + dr
+            var c = col + dc
+            while (r in 0 until GameBoard.BOARD_DIMENSION &&
+                c in 0 until GameBoard.BOARD_DIMENSION &&
+                state[r * GameBoard.BOARD_DIMENSION + c] == symbol
+            ) {
+                contiguous++
+                r += dr
+                c += dc
+            }
+            if (r in 0 until GameBoard.BOARD_DIMENSION &&
+                c in 0 until GameBoard.BOARD_DIMENSION &&
+                state[r * GameBoard.BOARD_DIMENSION + c] == '.'
+            ) openEnds++
+
+            r = row - dr
+            c = col - dc
+            while (r in 0 until GameBoard.BOARD_DIMENSION &&
+                c in 0 until GameBoard.BOARD_DIMENSION &&
+                state[r * GameBoard.BOARD_DIMENSION + c] == symbol
+            ) {
+                contiguous++
+                r -= dr
+                c -= dc
+            }
+            if (r in 0 until GameBoard.BOARD_DIMENSION &&
+                c in 0 until GameBoard.BOARD_DIMENSION &&
+                state[r * GameBoard.BOARD_DIMENSION + c] == '.'
+            ) openEnds++
+
+            score += when {
+                contiguous >= 5 -> 100000
+                contiguous == 4 -> if (openEnds == 2) 50000 else 5000
+                contiguous == 3 -> if (openEnds == 2) 5000 else 500
+                contiguous == 2 -> if (openEnds == 2) 500 else 50
+                else -> 0
+            }
+        }
+        return score
     }
 
     private fun minimax(
@@ -223,7 +290,6 @@ class AIMatchServerController {
     }
 
     private fun hasImmediateWin(state: CharArray, row: Int, col: Int, symbol: Char): Boolean {
-        state[row * GameBoard.BOARD_DIMENSION + col] = symbol
         val directions = arrayOf(0 to 1, 1 to 0, 1 to 1, 1 to -1)
         for ((dr, dc) in directions) {
             var total = 1
