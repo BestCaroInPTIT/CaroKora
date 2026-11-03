@@ -32,6 +32,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.caro.client.R
 import com.caro.client.controller.ApiClient
+import com.caro.client.controller.AIMatchClientController
 import com.caro.client.controller.ChallengeClientController
 import com.caro.client.controller.HumanMatchClientController
 import com.caro.client.controller.PlayerClientController
@@ -103,6 +104,7 @@ class MatchActivity : AppCompatActivity(), View.OnClickListener {
 
         val challengeClientController = ChallengeClientController()
         val humanMatchClientController = HumanMatchClientController()
+        val aiMatchClientController = AIMatchClientController()
         val playerClientController = PlayerClientController()
         val mainHandler = Handler(Looper.getMainLooper())
 
@@ -388,12 +390,20 @@ class MatchActivity : AppCompatActivity(), View.OnClickListener {
             lastObservedMoveCount = listMove.size
             lastObservedTurn = match.currentTurn
 
-            val oppName = oppParticipant?.player?.gameID ?: "OPPONENT"
+            val oppName = if (oppParticipant?.participantType.equals("AI", ignoreCase = true)) {
+                "AI ${oppParticipant?.aiDifficulty?.uppercase(Locale.US) ?: ""}".trim()
+            } else {
+                oppParticipant?.player?.gameID ?: "OPPONENT"
+            }
             val oppSide = oppParticipant?.side ?: "O"
             val mySide = myParticipant?.side ?: "X"
 
             findViewById<TextView>(R.id.lblMatchScreenTitle)?.text =
-                if (match.mode.equals("CHALLENGE", ignoreCase = true)) "CHALLENGE MATCH" else "HUMAN MATCH"
+                when {
+                    match.mode.equals("CHALLENGE", ignoreCase = true) -> "CHALLENGE MATCH"
+                    match.mode.equals("AI", ignoreCase = true) -> "AI MATCH"
+                    else -> "HUMAN MATCH"
+                }
 
             lblOpponentName.text = "OPPONENT: ${oppName.uppercase(Locale.US)}"
             lblMatchId.text = "MATCH ID: ${match.id}"
@@ -514,8 +524,12 @@ class MatchActivity : AppCompatActivity(), View.OnClickListener {
                         btnStopPlaying.isEnabled = false
                         Thread {
                             val stoppedMatch = try {
+                                val stopEndpoint = when {
+                                    match.mode.equals("AI", ignoreCase = true) -> "/api/ai-match/stop"
+                                    else -> "/api/human-match/stop"
+                                }
                                 humanMatchClientController.postJson<Match>(
-                                    "/api/human-match/stop",
+                                    stopEndpoint,
                                     mapOf("matchId" to match.id, "playerId" to player.id),
                                     Match::class.java
                                 )
@@ -568,6 +582,8 @@ class MatchActivity : AppCompatActivity(), View.OnClickListener {
                                         updatedMatch.move = latestMoves
                                     }
                                 }
+                            } else if (match.mode.equals("AI", ignoreCase = true)) {
+                                updatedMatch = aiMatchClientController.makeMove(newMove)
                             } else {
                                 updatedMatch = humanMatchClientController.makeMove(newMove)
                             }
@@ -621,6 +637,8 @@ class MatchActivity : AppCompatActivity(), View.OnClickListener {
                             val currentPlayerId = player.id
                             val timeoutEndpoint = if (match.mode.equals("CHALLENGE", ignoreCase = true)) {
                                 "/api/challenge/timeout"
+                            } else if (match.mode.equals("AI", ignoreCase = true)) {
+                                "/api/ai-match/timeout"
                             } else {
                                 "/api/human-match/timeout"
                             }

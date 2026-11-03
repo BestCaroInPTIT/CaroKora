@@ -39,6 +39,10 @@
             android:exported="false" />
 
         <activity
+            android:name=".ui.SelectDifficultyActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".ui.MatchActivity"
             android:exported="false" />
 

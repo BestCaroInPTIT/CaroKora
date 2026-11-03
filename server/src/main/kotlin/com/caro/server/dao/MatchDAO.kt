@@ -4,6 +4,50 @@ import com.caro.server.entity.Match
 
 class MatchDAO : DAO() {
 
+    fun createAIMatch(playerId: Int, difficulty: String): Match? = withConnection { connection ->
+        val normalizedDifficulty = when (difficulty.lowercase()) {
+            "beginner", "intermediate", "expert" -> difficulty.lowercase()
+            else -> return@withConnection null
+        }
+        if (playerId <= 0) return@withConnection null
+
+        val playerExists = connection.prepareStatement(
+            "SELECT 1 FROM Player WHERE id = ?"
+        ).use { ps ->
+            ps.setInt(1, playerId)
+            ps.executeQuery().use { rs -> rs.next() }
+        }
+        if (!playerExists) return@withConnection null
+
+        val matchId = connection.prepareStatement(
+            """
+            INSERT INTO Match (mode, status, startedAt, currentTurn, turnTimeLimit, boardSize)
+            VALUES ('AI', 'PLAYING', CURRENT_TIMESTAMP, 'X', 15, '17x17')
+            RETURNING id
+            """.trimIndent()
+        ).use { ps ->
+            ps.executeQuery().use { rs -> if (rs.next()) rs.getInt(1) else 0 }
+        }
+        if (matchId <= 0) return@withConnection null
+
+        connection.prepareStatement(
+            """
+            INSERT INTO MatchParticipant (participantType, side, aiDifficulty, Playerid, Matchid)
+            VALUES
+                ('HUMAN', 'X', NULL, ?, ?),
+                ('AI', 'O', ?, NULL, ?)
+            """.trimIndent()
+        ).use { ps ->
+            ps.setInt(1, playerId)
+            ps.setInt(2, matchId)
+            ps.setString(3, normalizedDifficulty)
+            ps.setInt(4, matchId)
+            ps.executeUpdate()
+        }
+
+        loadMatchInternal(connection, matchId)
+    }
+
     fun getMatchHistory(playerId: Int): ArrayList<Match> = withConnection { connection ->
         val matchIds = connection.prepareStatement(
             """

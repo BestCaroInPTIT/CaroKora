@@ -5,6 +5,7 @@ import com.caro.server.controller.HumanMatchServerController
 import com.caro.server.controller.MatchHistoryServerController
 import com.caro.server.controller.PlayerServerController
 import com.caro.server.controller.RankingServerController
+import com.caro.server.controller.AIMatchServerController
 import com.caro.server.dao.DAO
 import com.caro.server.dao.PlayerStatisticDAO
 import com.caro.server.entity.Match
@@ -32,6 +33,7 @@ private data class StatusRequest(val playerId: Int = 0, val onlineStatus: String
 private data class SendChallengeRequest(val p1Id: Int = 0, val p2Id: Int = 0)
 private data class RespondChallengeRequest(val matchId: Int = 0, val accept: Boolean = false)
 private data class FindMatchRequest(val playerId: Int = 0)
+private data class CreateAIRequest(val playerId: Int = 0, val difficulty: String = "beginner")
 private data class StopMatchRequest(val matchId: Int = 0, val playerId: Int = 0)
 private data class RematchRequest(val oldMatchId: Int = 0, val playerId: Int = 0, val accept: Boolean = true)
 private data class RematchSession(
@@ -104,6 +106,7 @@ fun Application.module() {
     val playerController = PlayerServerController()
     val challengeController = ChallengeServerController()
     val humanMatchController = HumanMatchServerController()
+    val aiMatchController = AIMatchServerController()
     val matchHistoryController = MatchHistoryServerController()
     val rankingController = RankingServerController()
     val playerStatisticDAO = PlayerStatisticDAO()
@@ -125,7 +128,7 @@ fun Application.module() {
                 mapOf(
                     "service" to "Caro Game System Server",
                     "status" to "ONLINE",
-                    "version" to "v6-view-ranking"
+                    "version" to "v7-play-ai"
                 )
             )
         }
@@ -145,7 +148,7 @@ fun Application.module() {
                 mapOf(
                     "status" to if (dbOk) "OK" else "DB_ERROR",
                     "database" to "Neon PostgreSQL",
-                    "version" to "v6-view-ranking"
+                    "version" to "v7-play-ai"
                 )
             )
         }
@@ -282,27 +285,6 @@ fun Application.module() {
             }
 
             // ============================================================
-            // CHUC NANG 5: XEM BANG XEP HANG (RankingServerController)
-            // ============================================================
-            get("/ranking") {
-                call.respond(HttpStatusCode.OK, rankingController.handleGetRanking())
-            }
-
-            get("/ranking/{playerId}/statistics") {
-                val playerId = call.parameters["playerId"]?.toIntOrNull() ?: 0
-                if (playerId <= 0) {
-                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid player ID"))
-                } else {
-                    val statistics = rankingController.handleGetPlayerStatistics(playerId)
-                    if (statistics != null) {
-                        call.respond(HttpStatusCode.OK, statistics)
-                    } else {
-                        call.respond(HttpStatusCode.NotFound, mapOf("error" to "Player statistics not found"))
-                    }
-                }
-            }
-
-            // ============================================================
             // CHUC NANG 3: CHOI VOI NGUOI (HumanMatchServerController)
             // ============================================================
             post("/human-match/find") {
@@ -372,6 +354,61 @@ fun Application.module() {
                         val m = DAO.checkAndEnforceTurnTimeout(req.matchId, force = true)
                         enrichEndedMatchStats(m)
                         m
+                    }
+                } else null
+                if (updatedMatch != null) {
+                    call.respond(HttpStatusCode.OK, updatedMatch)
+                } else {
+                    call.respond(HttpStatusCode.NotFound, mapOf("error" to "Match not found"))
+                }
+            }
+
+            // ============================================================
+            // CHUC NANG F5: CHOI VOI MAY (AIMatchServerController)
+            // ============================================================
+            post("/ai-match/create") {
+                val req = call.receive<CreateAIRequest>()
+                val match = aiMatchController.handleCreateMatch(req.playerId, req.difficulty)
+                if (match != null) {
+                    call.respond(HttpStatusCode.OK, match)
+                } else {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid player or difficulty"))
+                }
+            }
+
+            post("/ai-match/move") {
+                val move = call.receive<Move>()
+                val updatedMatch = aiMatchController.handleMakeMove(move)
+                if (updatedMatch != null) {
+                    call.respond(HttpStatusCode.OK, updatedMatch)
+                } else {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid AI match move"))
+                }
+            }
+
+            post("/ai-match/stop") {
+                val req = call.receive<StopMatchRequest>()
+                val stoppedMatch = if (req.matchId > 0) {
+                    synchronized(DAO.lockForMatch(req.matchId)) {
+                        val match = DAO.stopPlaying(req.matchId, req.playerId)
+                        enrichEndedMatchStats(match)
+                        match
+                    }
+                } else null
+                if (stoppedMatch != null) {
+                    call.respond(HttpStatusCode.OK, stoppedMatch)
+                } else {
+                    call.respond(HttpStatusCode.NotFound, mapOf("error" to "Match not found"))
+                }
+            }
+
+            post("/ai-match/timeout") {
+                val req = call.receive<StopMatchRequest>()
+                val updatedMatch = if (req.matchId > 0) {
+                    synchronized(DAO.lockForMatch(req.matchId)) {
+                        val match = DAO.checkAndEnforceTurnTimeout(req.matchId, force = true)
+                        enrichEndedMatchStats(match)
+                        match
                     }
                 } else null
                 if (updatedMatch != null) {
@@ -474,6 +511,27 @@ fun Application.module() {
                 val playerId = call.parameters["playerId"]?.toIntOrNull() ?: 0
                 val matchId = call.parameters["matchId"]?.toIntOrNull() ?: 0
                 call.respond(HttpStatusCode.OK, matchHistoryController.handleGetMoveHistory(playerId, matchId))
+            }
+            
+            // ============================================================
+            // CHUC NANG 5: XEM BANG XEP HANG (RankingServerController)
+            // ============================================================
+            get("/ranking") {
+                call.respond(HttpStatusCode.OK, rankingController.handleGetRanking())
+            }
+
+            get("/ranking/{playerId}/statistics") {
+                val playerId = call.parameters["playerId"]?.toIntOrNull() ?: 0
+                if (playerId <= 0) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid player ID"))
+                } else {
+                    val statistics = rankingController.handleGetPlayerStatistics(playerId)
+                    if (statistics != null) {
+                        call.respond(HttpStatusCode.OK, statistics)
+                    } else {
+                        call.respond(HttpStatusCode.NotFound, mapOf("error" to "Player statistics not found"))
+                    }
+                }
             }
         }
     }

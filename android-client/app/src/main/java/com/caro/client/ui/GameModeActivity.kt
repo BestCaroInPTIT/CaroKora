@@ -8,6 +8,7 @@ import androidx.appcompat.app.AppCompatActivity
 import com.caro.client.R
 import com.caro.client.controller.ApiClient
 import com.caro.client.entity.Player
+import android.content.Intent
 
 class GameModeActivity : AppCompatActivity(), View.OnClickListener {
 
@@ -46,7 +47,9 @@ class GameModeActivity : AppCompatActivity(), View.OnClickListener {
                 FindOpponentDialog(this, player).show()
             }
             R.id.btnPlayAgainstAI -> {
-                // Ngoai pham vi chuc nang ca nhan: bam vao khong thuc hien gi
+                startActivity(Intent(this, SelectDifficultyActivity::class.java).apply {
+                    putExtra("extra_player", player)
+                })
             }
             R.id.btnBack -> finish()
         }
