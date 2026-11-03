@@ -50,6 +50,10 @@
             android:name=".ui.MatchDetailActivity"
             android:exported="false" />
 
+        <activity
+            android:name=".ui.RankingActivity"
+            android:exported="false" />
+
         <!-- Thanh vien cung nhom (Nguyen Manh Duc) khai bao cac Activity F3, F4, F5 tai day -->
     </application>
 

@@ -4,6 +4,7 @@ import com.caro.server.controller.ChallengeServerController
 import com.caro.server.controller.HumanMatchServerController
 import com.caro.server.controller.MatchHistoryServerController
 import com.caro.server.controller.PlayerServerController
+import com.caro.server.controller.RankingServerController
 import com.caro.server.dao.DAO
 import com.caro.server.dao.PlayerStatisticDAO
 import com.caro.server.entity.Match
@@ -104,6 +105,7 @@ fun Application.module() {
     val challengeController = ChallengeServerController()
     val humanMatchController = HumanMatchServerController()
     val matchHistoryController = MatchHistoryServerController()
+    val rankingController = RankingServerController()
     val playerStatisticDAO = PlayerStatisticDAO()
     val rematchSessions = ConcurrentHashMap<Int, RematchSession>()
 
@@ -123,7 +125,7 @@ fun Application.module() {
                 mapOf(
                     "service" to "Caro Game System Server",
                     "status" to "ONLINE",
-                    "version" to "v5-match-history"
+                    "version" to "v6-view-ranking"
                 )
             )
         }
@@ -143,7 +145,7 @@ fun Application.module() {
                 mapOf(
                     "status" to if (dbOk) "OK" else "DB_ERROR",
                     "database" to "Neon PostgreSQL",
-                    "version" to "v5-match-history"
+                    "version" to "v6-view-ranking"
                 )
             )
         }
@@ -277,6 +279,27 @@ fun Application.module() {
                 val matchId = call.parameters["matchId"]?.toIntOrNull() ?: 0
                 val moves = challengeController.handleGetMoveHistory(matchId)
                 call.respond(HttpStatusCode.OK, moves)
+            }
+
+            // ============================================================
+            // CHUC NANG 5: XEM BANG XEP HANG (RankingServerController)
+            // ============================================================
+            get("/ranking") {
+                call.respond(HttpStatusCode.OK, rankingController.handleGetRanking())
+            }
+
+            get("/ranking/{playerId}/statistics") {
+                val playerId = call.parameters["playerId"]?.toIntOrNull() ?: 0
+                if (playerId <= 0) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid player ID"))
+                } else {
+                    val statistics = rankingController.handleGetPlayerStatistics(playerId)
+                    if (statistics != null) {
+                        call.respond(HttpStatusCode.OK, statistics)
+                    } else {
+                        call.respond(HttpStatusCode.NotFound, mapOf("error" to "Player statistics not found"))
+                    }
+                }
             }
 
             // ============================================================

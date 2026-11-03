@@ -148,7 +148,9 @@ class PlayerHomeActivity : AppCompatActivity(), View.OnClickListener {
                 startActivity(intent)
             }
             R.id.btnViewRanking -> {
-                // Ngoai pham vi chuc nang ca nhan: bam vao khong thuc hien gi
+                val intent = Intent(this, RankingActivity::class.java)
+                intent.putExtra("extra_player", player)
+                startActivity(intent)
             }
             R.id.btnLogout -> {
                 val currentId = player.id
