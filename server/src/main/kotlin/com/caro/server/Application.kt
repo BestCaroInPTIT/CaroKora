@@ -128,7 +128,7 @@ fun Application.module() {
                 mapOf(
                     "service" to "Caro Game System Server",
                     "status" to "ONLINE",
-                    "version" to "v7-play-ai"
+                    "version" to "ai-improved"
                 )
             )
         }
@@ -148,7 +148,7 @@ fun Application.module() {
                 mapOf(
                     "status" to if (dbOk) "OK" else "DB_ERROR",
                     "database" to "Neon PostgreSQL",
-                    "version" to "v7-play-ai"
+                    "version" to "ai-improved"
                 )
             )
         }
